@@ -1,0 +1,176 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Shop Credentials - Stores Shopware shop connection details
+// ============================================================================
+
+model Shop {
+  id              String   @id @default(uuid())
+  shopId          String   @unique @map("shop_id")
+  shopUrl         String   @map("shop_url")
+  apiKey          String   @map("api_key")
+  secretKey       String   @map("secret_key")
+  appName         String   @default("UcpCommerce") @map("app_name")
+  salesChannelId  String?  @map("sales_channel_id")
+  currencyId      String?  @map("currency_id")
+  languageId      String?  @map("language_id")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  checkoutSessions CheckoutSession[]
+  webhookDeliveries WebhookDelivery[]
+
+  @@map("shops")
+}
+
+// ============================================================================
+// Checkout Sessions - UCP checkout sessions mapped to Shopware carts
+// ============================================================================
+
+model CheckoutSession {
+  id                    String   @id @default(uuid())
+  ucpSessionId          String   @unique @map("ucp_session_id")
+  shopId                String   @map("shop_id")
+  shopwareCartToken     String   @map("shopware_cart_token")
+  status                String   @default("incomplete")
+
+  // Platform information
+  platformProfileUrl    String?  @map("platform_profile_url")
+  platformId            String?  @map("platform_id")
+  platformCapabilities  Json?    @map("platform_capabilities")
+
+  // Negotiated capabilities
+  activeCapabilities    Json?    @map("active_capabilities")
+  activeExtensions      Json?    @map("active_extensions")
+
+  // Buyer information
+  buyerEmail            String?  @map("buyer_email")
+  buyerPhone            String?  @map("buyer_phone")
+
+  // Address information (cached for quick access)
+  shippingAddress       Json?    @map("shipping_address")
+  billingAddress        Json?    @map("billing_address")
+
+  // Fulfillment selection
+  selectedFulfillmentId String?  @map("selected_fulfillment_id")
+
+  // Discount codes
+  appliedDiscountCodes  Json?    @map("applied_discount_codes")
+
+  // Order reference (after completion)
+  shopwareOrderId       String?  @map("shopware_order_id")
+  shopwareOrderNumber   String?  @map("shopware_order_number")
+
+  // Payment information
+  paymentHandlerId      String?  @map("payment_handler_id")
+  paymentTransactionId  String?  @map("payment_transaction_id")
+
+  // Timestamps
+  expiresAt             DateTime @map("expires_at")
+  completedAt           DateTime? @map("completed_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  shop                  Shop     @relation(fields: [shopId], references: [shopId])
+
+  @@index([shopId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("checkout_sessions")
+}
+
+// ============================================================================
+// Signing Keys - EC P-256 keys for webhook signing
+// ============================================================================
+
+model SigningKey {
+  id          String   @id @default(uuid())
+  keyId       String   @unique @map("key_id")
+  publicKey   String   @map("public_key")   // JWK format
+  privateKey  String   @map("private_key")  // JWK format (encrypted)
+  algorithm   String   @default("ES256")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime? @map("expires_at")
+
+  @@map("signing_keys")
+}
+
+// ============================================================================
+// Platform Profiles - Cached AI platform profiles
+// ============================================================================
+
+model PlatformProfile {
+  id            String   @id @default(uuid())
+  profileUrl    String   @unique @map("profile_url")
+  profileData   Json     @map("profile_data")
+  capabilities  Json?
+  paymentHandlers Json?  @map("payment_handlers")
+  cachedAt      DateTime @default(now()) @map("cached_at")
+  expiresAt     DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("platform_profiles")
+}
+
+// ============================================================================
+// Webhook Deliveries - Track outgoing webhooks to platforms
+// ============================================================================
+
+model WebhookDelivery {
+  id              String   @id @default(uuid())
+  shopId          String   @map("shop_id")
+  sessionId       String?  @map("session_id")
+  orderId         String?  @map("order_id")
+  event           String
+  targetUrl       String   @map("target_url")
+  payload         Json
+  status          String   @default("pending") // pending, sent, failed, retrying
+  attempts        Int      @default(0)
+  lastAttemptAt   DateTime? @map("last_attempt_at")
+  nextRetryAt     DateTime? @map("next_retry_at")
+  lastError       String?   @map("last_error")
+  deliveredAt     DateTime? @map("delivered_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  shop            Shop     @relation(fields: [shopId], references: [shopId])
+
+  @@index([shopId])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@map("webhook_deliveries")
+}
+
+// ============================================================================
+// Payment Handler Configs - Per-shop payment handler configuration
+// ============================================================================
+
+model PaymentHandlerConfig {
+  id            String   @id @default(uuid())
+  shopId        String   @map("shop_id")
+  handlerId     String   @map("handler_id")
+  handlerName   String   @map("handler_name")
+  enabled       Boolean  @default(true)
+  config        Json     // Handler-specific configuration
+  priority      Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([shopId, handlerId])
+  @@map("payment_handler_configs")
+}

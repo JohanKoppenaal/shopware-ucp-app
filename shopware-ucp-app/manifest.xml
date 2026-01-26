@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/Framework/App/Manifest/Schema/manifest-2.0.xsd">
+    <meta>
+        <name>UcpCommerce</name>
+        <label>UCP Commerce - Universal Commerce Protocol</label>
+        <label lang="nl-NL">UCP Commerce - Universal Commerce Protocol</label>
+        <label lang="de-DE">UCP Commerce - Universal Commerce Protocol</label>
+        <description>
+            Enable AI-powered shopping experiences through the Universal Commerce Protocol (UCP).
+            Allow AI agents like Google Gemini, ChatGPT, and Microsoft Copilot to discover products
+            and complete purchases on behalf of your customers.
+        </description>
+        <description lang="nl-NL">
+            Schakel AI-gestuurde shopping ervaringen in via het Universal Commerce Protocol (UCP).
+            Sta AI agents zoals Google Gemini, ChatGPT en Microsoft Copilot toe om producten te ontdekken
+            en aankopen te voltooien namens uw klanten.
+        </description>
+        <description lang="de-DE">
+            Aktivieren Sie KI-gestützte Einkaufserlebnisse über das Universal Commerce Protocol (UCP).
+            Ermöglichen Sie KI-Agenten wie Google Gemini, ChatGPT und Microsoft Copilot, Produkte zu entdecken
+            und Käufe im Namen Ihrer Kunden abzuschließen.
+        </description>
+        <author>Your Company Name</author>
+        <copyright>(c) 2026 Your Company Name</copyright>
+        <version>1.0.0</version>
+        <license>MIT</license>
+        <icon>Resources/config/icon.png</icon>
+        <compatibility>~6.5.0</compatibility>
+    </meta>
+
+    <setup>
+        <registrationUrl>https://ucp-app.example.com/shopware/registration</registrationUrl>
+        <secret>APP_SECRET_PLACEHOLDER</secret>
+    </setup>
+
+    <permissions>
+        <!-- Product access for catalog operations -->
+        <read>product</read>
+        <read>product_manufacturer</read>
+        <read>product_media</read>
+        <read>media</read>
+        <read>category</read>
+
+        <!-- Order management -->
+        <read>order</read>
+        <create>order</create>
+        <update>order</update>
+        <read>order_line_item</read>
+        <read>order_delivery</read>
+        <read>order_transaction</read>
+
+        <!-- Customer data for checkout -->
+        <read>customer</read>
+        <read>customer_address</read>
+
+        <!-- Cart operations -->
+        <read>cart</read>
+        <create>cart</create>
+        <update>cart</update>
+
+        <!-- Sales channel and configuration -->
+        <read>sales_channel</read>
+        <read>currency</read>
+        <read>country</read>
+        <read>country_state</read>
+        <read>language</read>
+        <read>salutation</read>
+
+        <!-- Shipping and payment methods -->
+        <read>shipping_method</read>
+        <read>payment_method</read>
+        <read>delivery_time</read>
+
+        <!-- Promotions and discounts -->
+        <read>promotion</read>
+        <read>promotion_discount</read>
+
+        <!-- Tax calculations -->
+        <read>tax</read>
+        <read>tax_rule</read>
+    </permissions>
+
+    <webhooks>
+        <!-- Order lifecycle events -->
+        <webhook name="orderPlaced" url="https://ucp-app.example.com/shopware/webhook/order-placed" event="checkout.order.placed"/>
+        <webhook name="orderStateChanged" url="https://ucp-app.example.com/shopware/webhook/order-state-changed" event="state_machine.order.state_changed"/>
+        <webhook name="orderDeliveryStateChanged" url="https://ucp-app.example.com/shopware/webhook/order-delivery-state-changed" event="state_machine.order_delivery.state_changed"/>
+        <webhook name="orderTransactionStateChanged" url="https://ucp-app.example.com/shopware/webhook/order-transaction-state-changed" event="state_machine.order_transaction.state_changed"/>
+
+        <!-- Product updates for catalog sync -->
+        <webhook name="productWritten" url="https://ucp-app.example.com/shopware/webhook/product-written" event="product.written"/>
+    </webhooks>
+
+    <admin>
+        <module name="ucp-dashboard"
+                source="https://ucp-app.example.com/admin"
+                parent="sw-settings">
+            <label>UCP Commerce</label>
+            <label lang="nl-NL">UCP Commerce</label>
+            <label lang="de-DE">UCP Commerce</label>
+        </module>
+    </admin>
+
+    <custom-fields>
+        <custom-field-set>
+            <name>ucp_order_data</name>
+            <label>UCP Order Data</label>
+            <label lang="nl-NL">UCP Bestelgegevens</label>
+            <label lang="de-DE">UCP Bestelldaten</label>
+            <related-entities>
+                <order/>
+            </related-entities>
+            <fields>
+                <text name="ucp_session_id">
+                    <label>UCP Session ID</label>
+                    <label lang="nl-NL">UCP Sessie ID</label>
+                    <label lang="de-DE">UCP Sitzungs-ID</label>
+                </text>
+                <text name="ucp_platform">
+                    <label>UCP Platform</label>
+                    <label lang="nl-NL">UCP Platform</label>
+                    <label lang="de-DE">UCP Plattform</label>
+                </text>
+                <text name="ucp_agent_id">
+                    <label>UCP Agent ID</label>
+                    <label lang="nl-NL">UCP Agent ID</label>
+                    <label lang="de-DE">UCP Agenten-ID</label>
+                </text>
+            </fields>
+        </custom-field-set>
+    </custom-fields>
+</manifest>

@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://ucp:ucppassword@db:5432/ucp_app?schema=public
+      - REDIS_URL=redis://redis:6379
+      - APP_SECRET=${APP_SECRET:-your-app-secret-here-min-32-characters}
+      - UCP_SERVER_URL=${UCP_SERVER_URL:-http://localhost:3000}
+      - UCP_VERSION=2026-01-11
+      - LOG_LEVEL=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ucp-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=ucp
+      - POSTGRES_PASSWORD=ucppassword
+      - POSTGRES_DB=ucp_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ucp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ucp -d ucp_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - ucp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Database migrations (run once)
+  migrate:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    command: npx prisma migrate deploy
+    environment:
+      - DATABASE_URL=postgresql://ucp:ucppassword@db:5432/ucp_app?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ucp-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ucp-network:
+    driver: bridge

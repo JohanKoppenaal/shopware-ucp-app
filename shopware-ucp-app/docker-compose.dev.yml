@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: builder
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://ucp:ucppassword@db:5432/ucp_app?schema=public
+      - REDIS_URL=redis://redis:6379
+      - APP_SECRET=dev-app-secret-for-local-testing-only
+      - UCP_SERVER_URL=http://localhost:3000
+      - UCP_VERSION=2026-01-11
+      - LOG_LEVEL=debug
+      - DEFAULT_SHOP_ID=dev-shop
+    volumes:
+      - ./server/src:/app/src:ro
+      - ./server/prisma:/app/prisma:ro
+    depends_on:
+      - db
+      - redis
+    networks:
+      - ucp-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=ucp
+      - POSTGRES_PASSWORD=ucppassword
+      - POSTGRES_DB=ucp_app
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - ucp-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - ucp-network
+
+  # Adminer for database management
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - ucp-network
+
+volumes:
+  postgres_data_dev:
+
+networks:
+  ucp-network:
+    driver: bridge

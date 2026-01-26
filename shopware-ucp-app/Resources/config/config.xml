@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/Framework/App/Manifest/Schema/manifest-2.0.xsd">
+
+    <!-- General Settings -->
+    <card>
+        <title>General Settings</title>
+        <title lang="nl-NL">Algemene Instellingen</title>
+        <title lang="de-DE">Allgemeine Einstellungen</title>
+
+        <input-field type="text">
+            <name>ucpAppServerUrl</name>
+            <label>UCP App Server URL</label>
+            <label lang="nl-NL">UCP App Server URL</label>
+            <label lang="de-DE">UCP App Server URL</label>
+            <helpText>The URL of your UCP App Server (e.g., https://ucp-app.example.com)</helpText>
+            <helpText lang="nl-NL">De URL van uw UCP App Server (bijv. https://ucp-app.example.com)</helpText>
+            <helpText lang="de-DE">Die URL Ihres UCP App Servers (z.B. https://ucp-app.example.com)</helpText>
+            <placeholder>https://ucp-app.example.com</placeholder>
+            <required>true</required>
+        </input-field>
+
+        <input-field type="password">
+            <name>ucpApiKey</name>
+            <label>API Key</label>
+            <label lang="nl-NL">API Sleutel</label>
+            <label lang="de-DE">API-Schlüssel</label>
+            <helpText>API key for authenticating with the UCP App Server</helpText>
+            <helpText lang="nl-NL">API sleutel voor authenticatie met de UCP App Server</helpText>
+            <helpText lang="de-DE">API-Schlüssel zur Authentifizierung mit dem UCP App Server</helpText>
+            <required>true</required>
+        </input-field>
+
+        <input-field type="bool">
+            <name>ucpEnabled</name>
+            <label>Enable UCP</label>
+            <label lang="nl-NL">UCP Inschakelen</label>
+            <label lang="de-DE">UCP Aktivieren</label>
+            <helpText>Enable or disable UCP functionality</helpText>
+            <helpText lang="nl-NL">UCP functionaliteit in- of uitschakelen</helpText>
+            <helpText lang="de-DE">UCP-Funktionalität aktivieren oder deaktivieren</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>ucpDebugMode</name>
+            <label>Debug Mode</label>
+            <label lang="nl-NL">Debug Modus</label>
+            <label lang="de-DE">Debug-Modus</label>
+            <helpText>Enable detailed logging for troubleshooting</helpText>
+            <helpText lang="nl-NL">Schakel gedetailleerde logging in voor probleemoplossing</helpText>
+            <helpText lang="de-DE">Aktivieren Sie detaillierte Protokollierung zur Fehlerbehebung</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+    </card>
+
+    <!-- Capabilities -->
+    <card>
+        <title>Capabilities</title>
+        <title lang="nl-NL">Mogelijkheden</title>
+        <title lang="de-DE">Fähigkeiten</title>
+
+        <input-field type="bool">
+            <name>capabilityCheckout</name>
+            <label>Checkout Capability</label>
+            <label lang="nl-NL">Checkout Mogelijkheid</label>
+            <label lang="de-DE">Checkout-Fähigkeit</label>
+            <helpText>Enable AI agents to create and complete checkouts</helpText>
+            <helpText lang="nl-NL">Sta AI agents toe om checkouts te maken en te voltooien</helpText>
+            <helpText lang="de-DE">Ermöglichen Sie KI-Agenten, Checkouts zu erstellen und abzuschließen</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>capabilityOrder</name>
+            <label>Order Capability</label>
+            <label lang="nl-NL">Bestelling Mogelijkheid</label>
+            <label lang="de-DE">Bestellungs-Fähigkeit</label>
+            <helpText>Send order status updates to AI platforms</helpText>
+            <helpText lang="nl-NL">Stuur bestellingsstatus updates naar AI platforms</helpText>
+            <helpText lang="de-DE">Senden Sie Bestellstatus-Updates an KI-Plattformen</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>extensionFulfillment</name>
+            <label>Fulfillment Extension</label>
+            <label lang="nl-NL">Fulfillment Extensie</label>
+            <label lang="de-DE">Fulfillment-Erweiterung</label>
+            <helpText>Include shipping options in checkout</helpText>
+            <helpText lang="nl-NL">Voeg verzendopties toe aan checkout</helpText>
+            <helpText lang="de-DE">Versandoptionen in Checkout einbeziehen</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>extensionDiscounts</name>
+            <label>Discounts Extension</label>
+            <label lang="nl-NL">Kortingen Extensie</label>
+            <label lang="de-DE">Rabatt-Erweiterung</label>
+            <helpText>Allow coupon codes and promotions</helpText>
+            <helpText lang="nl-NL">Sta kortingscodes en promoties toe</helpText>
+            <helpText lang="de-DE">Gutscheincodes und Aktionen erlauben</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>transportMcp</name>
+            <label>MCP Transport</label>
+            <label lang="nl-NL">MCP Transport</label>
+            <label lang="de-DE">MCP Transport</label>
+            <helpText>Enable Model Context Protocol binding for LLM integration</helpText>
+            <helpText lang="nl-NL">Schakel Model Context Protocol binding in voor LLM integratie</helpText>
+            <helpText lang="de-DE">Model Context Protocol-Bindung für LLM-Integration aktivieren</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+
+    <!-- Payment Handlers -->
+    <card>
+        <title>Payment Handlers</title>
+        <title lang="nl-NL">Betaalhandlers</title>
+        <title lang="de-DE">Zahlungshandler</title>
+
+        <input-field type="bool">
+            <name>handlerGooglePay</name>
+            <label>Google Pay</label>
+            <helpText>Enable Google Pay as a payment handler</helpText>
+            <helpText lang="nl-NL">Schakel Google Pay in als betaalhandler</helpText>
+            <helpText lang="de-DE">Google Pay als Zahlungshandler aktivieren</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>googlePayMerchantId</name>
+            <label>Google Pay Merchant ID</label>
+            <label lang="nl-NL">Google Pay Merchant ID</label>
+            <label lang="de-DE">Google Pay Händler-ID</label>
+            <helpText>Your Google Pay Merchant ID</helpText>
+            <helpText lang="nl-NL">Uw Google Pay Merchant ID</helpText>
+            <helpText lang="de-DE">Ihre Google Pay Händler-ID</helpText>
+        </input-field>
+
+        <input-field type="text">
+            <name>googlePayMerchantName</name>
+            <label>Google Pay Merchant Name</label>
+            <label lang="nl-NL">Google Pay Merchant Naam</label>
+            <label lang="de-DE">Google Pay Händlername</label>
+            <helpText>Your business name as displayed in Google Pay</helpText>
+            <helpText lang="nl-NL">Uw bedrijfsnaam zoals weergegeven in Google Pay</helpText>
+            <helpText lang="de-DE">Ihr Firmenname wie in Google Pay angezeigt</helpText>
+        </input-field>
+
+        <input-field type="bool">
+            <name>handlerTokenizer</name>
+            <label>Business Tokenizer</label>
+            <helpText>Enable Business Tokenizer for PSP integrations (Mollie, Adyen, Stripe)</helpText>
+            <helpText lang="nl-NL">Schakel Business Tokenizer in voor PSP integraties (Mollie, Adyen, Stripe)</helpText>
+            <helpText lang="de-DE">Business Tokenizer für PSP-Integrationen aktivieren (Mollie, Adyen, Stripe)</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>tokenizerPspType</name>
+            <label>PSP Type</label>
+            <label lang="nl-NL">PSP Type</label>
+            <label lang="de-DE">PSP-Typ</label>
+            <helpText>Select your Payment Service Provider</helpText>
+            <helpText lang="nl-NL">Selecteer uw Payment Service Provider</helpText>
+            <helpText lang="de-DE">Wählen Sie Ihren Zahlungsdienstleister</helpText>
+            <options>
+                <option>
+                    <id>mollie</id>
+                    <name>Mollie</name>
+                </option>
+                <option>
+                    <id>adyen</id>
+                    <name>Adyen</name>
+                </option>
+                <option>
+                    <id>stripe</id>
+                    <name>Stripe</name>
+                </option>
+                <option>
+                    <id>paypal</id>
+                    <name>PayPal</name>
+                </option>
+            </options>
+        </input-field>
+
+        <input-field type="text">
+            <name>tokenizerPublicKey</name>
+            <label>Tokenizer Public Key</label>
+            <label lang="nl-NL">Tokenizer Publieke Sleutel</label>
+            <label lang="de-DE">Tokenizer öffentlicher Schlüssel</label>
+            <helpText>Public key for client-side tokenization</helpText>
+            <helpText lang="nl-NL">Publieke sleutel voor client-side tokenization</helpText>
+            <helpText lang="de-DE">Öffentlicher Schlüssel für clientseitige Tokenisierung</helpText>
+        </input-field>
+    </card>
+
+    <!-- Advanced Settings -->
+    <card>
+        <title>Advanced Settings</title>
+        <title lang="nl-NL">Geavanceerde Instellingen</title>
+        <title lang="de-DE">Erweiterte Einstellungen</title>
+
+        <input-field type="int">
+            <name>sessionExpiryHours</name>
+            <label>Session Expiry (hours)</label>
+            <label lang="nl-NL">Sessie Vervaltijd (uren)</label>
+            <label lang="de-DE">Sitzungsablauf (Stunden)</label>
+            <helpText>How long checkout sessions remain valid</helpText>
+            <helpText lang="nl-NL">Hoe lang checkout sessies geldig blijven</helpText>
+            <helpText lang="de-DE">Wie lange Checkout-Sitzungen gültig bleiben</helpText>
+            <defaultValue>6</defaultValue>
+        </input-field>
+
+        <input-field type="int">
+            <name>webhookRetryAttempts</name>
+            <label>Webhook Retry Attempts</label>
+            <label lang="nl-NL">Webhook Herpogingen</label>
+            <label lang="de-DE">Webhook-Wiederholungsversuche</label>
+            <helpText>Number of times to retry failed webhooks</helpText>
+            <helpText lang="nl-NL">Aantal keren om mislukte webhooks opnieuw te proberen</helpText>
+            <helpText lang="de-DE">Anzahl der Wiederholungsversuche für fehlgeschlagene Webhooks</helpText>
+            <defaultValue>5</defaultValue>
+        </input-field>
+
+        <input-field type="int">
+            <name>profileCacheTtlMinutes</name>
+            <label>Profile Cache TTL (minutes)</label>
+            <label lang="nl-NL">Profiel Cache TTL (minuten)</label>
+            <label lang="de-DE">Profil-Cache TTL (Minuten)</label>
+            <helpText>How long to cache the UCP profile</helpText>
+            <helpText lang="nl-NL">Hoe lang het UCP profiel te cachen</helpText>
+            <helpText lang="de-DE">Wie lange das UCP-Profil zwischengespeichert wird</helpText>
+            <defaultValue>5</defaultValue>
+        </input-field>
+    </card>
+</config>
