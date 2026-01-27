@@ -63,8 +63,10 @@ export class ProfileBuilder {
             },
             ...(options.enableMcp !== false && {
               mcp: {
-                schema: 'https://ucp.dev/services/shopping/mcp.openrpc.json',
+                schema: `${UCP_SERVER_URL}/mcp/openrpc`,
                 endpoint: `${UCP_SERVER_URL}/mcp`,
+                streaming_endpoint: `${UCP_SERVER_URL}/mcp/sse`,
+                protocol_version: '2024-11-05',
               },
             }),
           },

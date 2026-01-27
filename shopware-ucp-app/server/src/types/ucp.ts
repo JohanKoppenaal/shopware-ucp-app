@@ -29,6 +29,8 @@ export interface UcpService {
   mcp?: {
     schema: string;
     endpoint: string;
+    streaming_endpoint?: string;
+    protocol_version?: string;
   };
 }
 
