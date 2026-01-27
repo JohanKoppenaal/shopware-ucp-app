@@ -5,12 +5,11 @@
 
 import { Router, type Request, type Response } from 'express';
 import { shopRepository } from '../repositories/ShopRepository.js';
-import { sessionRepository } from '../repositories/SessionRepository.js';
-import { validateWebhookSignature } from '../middleware/signatureValidation.js';
+import { webhookDeliveryRepository } from '../repositories/WebhookDeliveryRepository.js';
+import { orderStatusSyncService, type OrderStateChange } from '../services/OrderStatusSyncService.js';
+import { webhookService } from '../services/WebhookService.js';
 import { logger } from '../utils/logger.js';
 import type { ShopwareWebhookPayload, ShopwareOrder } from '../types/shopware.js';
-import type { OrderWebhookPayload } from '../types/ucp.js';
-import { keyManager } from '../services/KeyManager.js';
 
 const router = Router();
 
@@ -51,16 +50,13 @@ router.post('/shopware/order-placed', async (req: Request, res: Response) => {
       if (ucpSessionId) {
         logger.info({ orderId: order.id, ucpSessionId }, 'UCP order placed');
 
-        // Dispatch webhook to platform
-        await dispatchOrderWebhook(shopId, ucpSessionId, {
-          event: 'order.updated',
-          order: {
-            id: order.id,
-            ucp_session_id: ucpSessionId,
-            order_number: order.orderNumber,
-            status: 'confirmed',
-          },
-          timestamp: new Date().toISOString(),
+        // Sync the order creation to platform
+        await orderStatusSyncService.handleOrderStateChange(shopId, {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          previousState: '',
+          newState: 'open',
+          stateType: 'order',
         });
       }
     }
@@ -87,38 +83,32 @@ router.post('/shopware/order-state-changed', async (req: Request, res: Response)
       return;
     }
 
+    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid signature' });
+      return;
+    }
+
     const stateChanges = payload.data.payload as unknown as Array<{
       entityId: string;
+      fromStateMachineState?: { technicalName: string };
       toStateMachineState: { technicalName: string };
+      order?: { id: string; orderNumber: string };
     }>;
 
     for (const change of stateChanges) {
-      const orderId = change.entityId;
-      const newState = change.toStateMachineState.technicalName;
+      const orderId = change.entityId ?? change.order?.id;
+      if (!orderId) continue;
 
-      // Find UCP session for this order
-      const sessions = await sessionRepository.findByShop(shopId, { limit: 1000 });
-      const session = sessions.find((s) => s.shopwareOrderId === orderId);
+      const stateChange: OrderStateChange = {
+        orderId,
+        orderNumber: change.order?.orderNumber,
+        previousState: change.fromStateMachineState?.technicalName ?? '',
+        newState: change.toStateMachineState.technicalName,
+        stateType: 'order',
+      };
 
-      if (session) {
-        const ucpStatus = mapShopwareStateToUcp(newState);
-
-        logger.info(
-          { orderId, ucpSessionId: session.ucpSessionId, newState, ucpStatus },
-          'Order state changed'
-        );
-
-        await dispatchOrderWebhook(shopId, session.ucpSessionId, {
-          event: getEventForState(ucpStatus),
-          order: {
-            id: orderId,
-            ucp_session_id: session.ucpSessionId,
-            order_number: session.shopwareOrderNumber ?? '',
-            status: ucpStatus,
-          },
-          timestamp: new Date().toISOString(),
-        });
-      }
+      await orderStatusSyncService.handleOrderStateChange(shopId, stateChange);
     }
 
     res.status(200).json({ received: true });
@@ -143,56 +133,217 @@ router.post('/shopware/order-delivery-state-changed', async (req: Request, res: 
       return;
     }
 
+    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid signature' });
+      return;
+    }
+
     const deliveryChanges = payload.data.payload as unknown as Array<{
       entityId: string;
+      fromStateMachineState?: { technicalName: string };
       toStateMachineState: { technicalName: string };
       order?: { id: string; orderNumber: string };
       trackingCodes?: string[];
+      shippingMethod?: { name: string };
     }>;
 
     for (const change of deliveryChanges) {
-      const newState = change.toStateMachineState.technicalName;
       const orderId = change.order?.id;
-
       if (!orderId) continue;
 
-      const sessions = await sessionRepository.findByShop(shopId, { limit: 1000 });
-      const session = sessions.find((s) => s.shopwareOrderId === orderId);
+      const stateChange: OrderStateChange = {
+        orderId,
+        orderNumber: change.order?.orderNumber,
+        previousState: change.fromStateMachineState?.technicalName ?? '',
+        newState: change.toStateMachineState.technicalName,
+        stateType: 'delivery',
+        trackingCodes: change.trackingCodes,
+        carrier: change.shippingMethod?.name,
+      };
 
-      if (session) {
-        let event: OrderWebhookPayload['event'] = 'order.updated';
-
-        if (newState === 'shipped') {
-          event = 'order.shipped';
-        } else if (newState === 'delivered') {
-          event = 'order.delivered';
-        }
-
-        const tracking =
-          change.trackingCodes?.map((code) => ({
-            carrier: 'Unknown', // Would need to look up shipping method
-            tracking_number: code,
-            tracking_url: undefined,
-          })) ?? undefined;
-
-        await dispatchOrderWebhook(shopId, session.ucpSessionId, {
-          event,
-          order: {
-            id: orderId,
-            ucp_session_id: session.ucpSessionId,
-            order_number: session.shopwareOrderNumber ?? '',
-            status: newState === 'delivered' ? 'delivered' : 'shipped',
-            tracking,
-          },
-          timestamp: new Date().toISOString(),
-        });
-      }
+      await orderStatusSyncService.handleDeliveryStateChange(shopId, stateChange);
     }
 
     res.status(200).json({ received: true });
   } catch (error) {
     logger.error({ error }, 'Failed to process delivery state webhook');
     res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+/**
+ * POST /webhooks/shopware/order-transaction-state-changed
+ * Called when payment/transaction state changes
+ */
+router.post('/shopware/order-transaction-state-changed', async (req: Request, res: Response) => {
+  try {
+    const payload = req.body as ShopwareWebhookPayload;
+    const shopId = payload.source.shopId;
+
+    const shop = await shopRepository.findByShopId(shopId);
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid signature' });
+      return;
+    }
+
+    const transactionChanges = payload.data.payload as unknown as Array<{
+      entityId: string;
+      fromStateMachineState?: { technicalName: string };
+      toStateMachineState: { technicalName: string };
+      order?: { id: string; orderNumber: string };
+    }>;
+
+    for (const change of transactionChanges) {
+      const orderId = change.order?.id;
+      if (!orderId) continue;
+
+      const stateChange: OrderStateChange = {
+        orderId,
+        orderNumber: change.order?.orderNumber,
+        previousState: change.fromStateMachineState?.technicalName ?? '',
+        newState: change.toStateMachineState.technicalName,
+        stateType: 'transaction',
+      };
+
+      await orderStatusSyncService.handleTransactionStateChange(shopId, stateChange);
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    logger.error({ error }, 'Failed to process transaction state webhook');
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+/**
+ * POST /webhooks/shopware/product-written
+ * Called when products are created or updated (for catalog sync)
+ */
+router.post('/shopware/product-written', async (req: Request, res: Response) => {
+  try {
+    const payload = req.body as ShopwareWebhookPayload;
+    const shopId = payload.source.shopId;
+
+    const shop = await shopRepository.findByShopId(shopId);
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid signature' });
+      return;
+    }
+
+    // Product sync would be handled here
+    // For now, just acknowledge receipt
+    const products = payload.data.payload as unknown as Array<{ id: string }>;
+    logger.info({ shopId, productCount: products.length }, 'Product update received');
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    logger.error({ error }, 'Failed to process product written webhook');
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// ============================================================================
+// Webhook Management Endpoints
+// ============================================================================
+
+/**
+ * GET /webhooks/deliveries
+ * List webhook deliveries for a shop
+ */
+router.get('/deliveries', async (req: Request, res: Response) => {
+  try {
+    const shopId = req.query['shop_id'] as string;
+    const status = req.query['status'] as string | undefined;
+    const limit = parseInt(req.query['limit'] as string) || 50;
+
+    if (!shopId) {
+      res.status(400).json({ error: 'shop_id is required' });
+      return;
+    }
+
+    const deliveries = await webhookDeliveryRepository.findMany(
+      {
+        shopId,
+        status: status as 'pending' | 'sent' | 'failed' | 'retrying' | undefined,
+      },
+      { limit }
+    );
+
+    res.json({
+      deliveries: deliveries.map((d) => ({
+        id: d.id,
+        event: d.event,
+        status: d.status,
+        target_url: d.targetUrl,
+        attempts: d.attempts,
+        last_error: d.lastError,
+        created_at: d.createdAt,
+        delivered_at: d.deliveredAt,
+      })),
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to list webhook deliveries');
+    res.status(500).json({ error: 'Failed to list deliveries' });
+  }
+});
+
+/**
+ * GET /webhooks/stats
+ * Get webhook delivery statistics
+ */
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const shopId = req.query['shop_id'] as string;
+
+    if (!shopId) {
+      res.status(400).json({ error: 'shop_id is required' });
+      return;
+    }
+
+    const stats = await webhookService.getStats(shopId);
+
+    res.json(stats);
+  } catch (error) {
+    logger.error({ error }, 'Failed to get webhook stats');
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
+/**
+ * POST /webhooks/deliveries/:id/retry
+ * Retry a failed webhook delivery
+ */
+router.post('/deliveries/:id/retry', async (req: Request, res: Response) => {
+  try {
+    const id = req.params['id'];
+    if (!id) {
+      res.status(400).json({ error: 'delivery_id is required' });
+      return;
+    }
+
+    const success = await webhookService.retryDelivery(id);
+
+    res.json({
+      success,
+      message: success ? 'Delivery retried successfully' : 'Retry queued',
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error({ error, deliveryId: req.params['id'] }, 'Failed to retry delivery');
+    res.status(400).json({ error: errorMessage });
   }
 });
 
@@ -215,85 +366,6 @@ async function validateWebhookRequest(req: Request, shopSecret: string): Promise
   const expectedSignature = createHmac('sha256', shopSecret).update(rawBody).digest('hex');
 
   return signature === expectedSignature;
-}
-
-/**
- * Map Shopware order state to UCP status
- */
-function mapShopwareStateToUcp(shopwareState: string): string {
-  const stateMap: Record<string, string> = {
-    open: 'confirmed',
-    in_progress: 'processing',
-    completed: 'delivered',
-    cancelled: 'canceled',
-  };
-
-  return stateMap[shopwareState] ?? shopwareState;
-}
-
-/**
- * Get webhook event type for status
- */
-function getEventForState(status: string): OrderWebhookPayload['event'] {
-  switch (status) {
-    case 'shipped':
-      return 'order.shipped';
-    case 'delivered':
-      return 'order.delivered';
-    case 'canceled':
-      return 'order.canceled';
-    default:
-      return 'order.updated';
-  }
-}
-
-/**
- * Dispatch webhook to platform
- */
-async function dispatchOrderWebhook(
-  _shopId: string,
-  ucpSessionId: string,
-  payload: OrderWebhookPayload
-): Promise<void> {
-  // Get session to find platform webhook URL
-  const session = await sessionRepository.findByUcpId(ucpSessionId);
-
-  if (!session?.platformProfileUrl) {
-    logger.debug({ ucpSessionId }, 'No platform URL for webhook');
-    return;
-  }
-
-  try {
-    // Sign the payload
-    const signedPayload = await keyManager.signPayload(payload as unknown as Record<string, unknown>);
-
-    // Fetch platform profile to get webhook URL
-    // In production, this would be cached
-    const platformWebhookUrl = `${session.platformProfileUrl}/webhooks/orders`;
-
-    // Send webhook
-    const response = await fetch(platformWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-UCP-Signature': signedPayload,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      logger.warn(
-        { ucpSessionId, status: response.status, url: platformWebhookUrl },
-        'Webhook delivery failed'
-      );
-      // In production, queue for retry
-    } else {
-      logger.info({ ucpSessionId, event: payload.event }, 'Webhook delivered');
-    }
-  } catch (error) {
-    logger.error({ error, ucpSessionId }, 'Failed to dispatch webhook');
-    // In production, queue for retry
-  }
 }
 
 export default router;
