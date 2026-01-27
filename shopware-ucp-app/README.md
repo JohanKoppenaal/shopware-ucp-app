@@ -6,8 +6,10 @@ A Shopware 6 App that implements the **Universal Commerce Protocol (UCP)** for a
 
 - **UCP Profile Endpoint** (`/.well-known/ucp`) - Declares supported capabilities and payment handlers
 - **Checkout Sessions** - Full checkout lifecycle: create, update, complete, cancel
-- **Payment Handlers** - Google Pay, Business Tokenizer (Mollie, Stripe, Adyen)
-- **MCP Transport** - Model Context Protocol binding for direct LLM integration
+- **Payment Processing** - 3DS/SCA support, payment verification, and order creation
+- **Payment Handlers** - Google Pay, Mollie (iDEAL, Bancontact, Cards), Business Tokenizer
+- **MCP Transport** - Model Context Protocol binding with JSON-RPC 2.0 and SSE streaming
+- **Admin UI** - Shopware Admin panel for payment handler configuration
 - **Order Webhooks** - Real-time order status updates to AI platforms
 - **Shopware Integration** - Full Store API and Admin API integration
 
@@ -102,10 +104,31 @@ DELETE /api/v1/checkout-sessions/{id}     # Cancel session
 ### MCP Transport
 
 ```
-POST /mcp
+POST /mcp              # Standard JSON-RPC 2.0 endpoint
+GET  /mcp/sse          # SSE connection for streaming
+POST /mcp/sse          # Streaming JSON-RPC requests
+GET  /mcp/openrpc      # OpenRPC schema discovery
 ```
 
-JSON-RPC 2.0 endpoint for Model Context Protocol.
+Model Context Protocol binding for direct LLM integration. Available tools:
+- `create_checkout` - Create a checkout session with line items
+- `get_checkout` - Get current checkout state
+- `update_checkout` - Update shipping/billing address, select shipping method
+- `complete_checkout` - Complete checkout with payment
+- `cancel_checkout` - Cancel a checkout session
+- `list_shipping_options` - Get available shipping methods
+- `list_payment_methods` - Get available payment handlers
+
+### Admin API
+
+```
+GET    /admin/payment-handlers                     # List all payment handlers
+GET    /admin/payment-handlers/{id}                # Get handler configuration
+PUT    /admin/payment-handlers/{id}                # Update handler configuration
+POST   /admin/payment-handlers/{id}/test           # Test handler connection
+GET    /admin/shops/{shopId}/payment-handlers      # Get shop-specific handlers
+PUT    /admin/shops/{shopId}/payment-handlers      # Configure shop handlers
+```
 
 ### Health
 
@@ -126,7 +149,11 @@ GET /health/live    # Liveness probe
 | `REDIS_URL` | Redis connection string | - |
 | `APP_SECRET` | Shopware app secret (min 32 chars) | - |
 | `UCP_SERVER_URL` | Public URL of this server | - |
+| `UCP_VERSION` | UCP protocol version | `2026-01-11` |
+| `ENABLE_MCP` | Enable MCP transport binding | `true` |
 | `GOOGLE_PAY_MERCHANT_ID` | Google Pay merchant ID | - |
+| `MOLLIE_API_KEY` | Mollie API key (live or test) | - |
+| `MOLLIE_TEST_MODE` | Use Mollie test environment | `false` |
 | `PSP_TYPE` | Payment processor (mollie/stripe/adyen) | `mollie` |
 
 ### Shopware App Configuration
@@ -194,14 +221,27 @@ shopware-ucp-app/
 ├── Resources/
 │   └── config/
 │       └── config.xml         # App configuration schema
+├── admin/                      # Shopware Admin UI module
+│   └── src/
+│       └── module/
+│           └── ucp-payment-handlers/  # Payment handler config UI
 ├── server/                     # Node.js/TypeScript server
 │   ├── src/
-│   │   ├── routes/            # Express routes
+│   │   ├── routes/            # Express routes (checkout, mcp, admin)
 │   │   ├── services/          # Business logic
+│   │   │   ├── CheckoutSessionService.ts
+│   │   │   ├── PaymentProcessor.ts
+│   │   │   ├── PaymentHandlerRegistry.ts
+│   │   │   ├── McpToolRegistry.ts
+│   │   │   ├── ProfileBuilder.ts
+│   │   │   └── OrderService.ts
 │   │   ├── handlers/          # Payment handlers
+│   │   │   ├── GooglePayHandler.ts
+│   │   │   ├── TokenizerHandler.ts
+│   │   │   └── MollieHandler.ts
 │   │   ├── repositories/      # Data access
 │   │   ├── middleware/        # Express middleware
-│   │   ├── types/             # TypeScript types
+│   │   ├── types/             # TypeScript types (ucp.ts, mcp.ts)
 │   │   └── utils/             # Utilities
 │   ├── tests/                 # Unit & integration tests
 │   ├── prisma/                # Database schema
@@ -209,6 +249,22 @@ shopware-ucp-app/
 ├── docker-compose.yml         # Production compose
 └── docker-compose.dev.yml     # Development compose
 ```
+
+## Payment Handlers
+
+### Google Pay
+Direct integration with Google Pay. Requires `GOOGLE_PAY_MERCHANT_ID`.
+
+### Mollie
+Full Mollie integration supporting:
+- **iDEAL** - Dutch bank payments with issuer selection
+- **Bancontact** - Belgian payment cards
+- **Credit Cards** - Visa, Mastercard, Amex with 3DS support
+
+Configure via environment: `MOLLIE_API_KEY`, `MOLLIE_TEST_MODE`.
+
+### Tokenizer
+Generic tokenized payments for PSPs like Stripe and Adyen.
 
 ## UCP Protocol Version
 
