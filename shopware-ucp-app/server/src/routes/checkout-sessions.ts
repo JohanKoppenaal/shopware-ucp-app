@@ -252,7 +252,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     res.json(session);
   } catch (error) {
-    logger.error({ error, sessionId: req.params['id'] }, 'Failed to update checkout session');
+    const errorDetails = error instanceof Error ? { message: error.message, stack: error.stack } : error;
+    logger.error({ error: errorDetails, sessionId: req.params['id'] }, 'Failed to update checkout session');
 
     if (error instanceof z.ZodError) {
       sendError(res, 400, {

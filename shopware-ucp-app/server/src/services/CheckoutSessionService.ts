@@ -19,7 +19,19 @@ import type {
 } from '../types/ucp.js';
 import type { ShopCredentials, ShopwareCart } from '../types/shopware.js';
 import { ShopwareApiClient } from './ShopwareApiClient.js';
+import { MockShopwareApiClient } from './MockShopwareApiClient.js';
 import { CartMapper } from './CartMapper.js';
+
+const USE_MOCK_API = process.env['USE_MOCK_SHOPWARE'] === 'true' || process.env['NODE_ENV'] === 'development';
+
+type ApiClient = ShopwareApiClient | MockShopwareApiClient;
+
+function createApiClient(credentials: ShopCredentials): ApiClient {
+  if (USE_MOCK_API) {
+    return new MockShopwareApiClient(credentials);
+  }
+  return new ShopwareApiClient(credentials);
+}
 import { sessionRepository } from '../repositories/SessionRepository.js';
 import { shopRepository } from '../repositories/ShopRepository.js';
 import { paymentHandlerRegistry } from './PaymentHandlerRegistry.js';
@@ -57,7 +69,7 @@ export class CheckoutSessionService {
       secretKey: shop.secretKey,
     };
 
-    const client = new ShopwareApiClient(credentials);
+    const client = createApiClient(credentials);
 
     // Create Shopware cart
     const cart = await client.createCart();
@@ -142,7 +154,7 @@ export class CheckoutSessionService {
       return null;
     }
 
-    const client = new ShopwareApiClient({
+    const client = createApiClient({
       shopId: shop.shopId,
       shopUrl: shop.shopUrl,
       apiKey: shop.apiKey,
@@ -180,7 +192,7 @@ export class CheckoutSessionService {
       throw this.createError('INTERNAL_ERROR', 'Shop not found');
     }
 
-    const client = new ShopwareApiClient({
+    const client = createApiClient({
       shopId: shop.shopId,
       shopUrl: shop.shopUrl,
       apiKey: shop.apiKey,
@@ -334,7 +346,7 @@ export class CheckoutSessionService {
       }
 
       // Create order in Shopware
-      const client = new ShopwareApiClient({
+      const client = createApiClient({
         shopId: shop.shopId,
         shopUrl: shop.shopUrl,
         apiKey: shop.apiKey,
