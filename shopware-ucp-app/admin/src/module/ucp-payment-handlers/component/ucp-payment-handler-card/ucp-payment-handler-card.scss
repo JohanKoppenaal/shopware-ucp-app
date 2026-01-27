@@ -1,0 +1,45 @@
+.ucp-payment-handler-card {
+    &__header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    &__icon {
+        flex-shrink: 0;
+        color: var(--color-icon-primary);
+    }
+
+    &__info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__name {
+        margin: 0 0 4px;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
+
+    &__description {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-text-secondary);
+    }
+
+    &__badges {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    &__actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-border);
+    }
+}

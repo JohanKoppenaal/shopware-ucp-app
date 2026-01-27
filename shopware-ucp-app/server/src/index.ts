@@ -18,6 +18,7 @@ import checkoutSessionsRoutes from './routes/checkout-sessions.js';
 import webhooksRoutes from './routes/webhooks.js';
 import mcpRoutes from './routes/mcp.js';
 import healthRoutes from './routes/health.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
@@ -92,6 +93,9 @@ app.use('/webhooks', webhooksRoutes);
 
 // MCP transport
 app.use('/mcp', mcpRoutes);
+
+// Admin API (for configuration UI)
+app.use('/api/admin', adminRoutes);
 
 // ============================================================================
 // Error Handling

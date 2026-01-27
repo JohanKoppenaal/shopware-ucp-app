@@ -57,6 +57,8 @@ export interface PaymentHandler {
 export interface PaymentCredential {
   type: string;
   token: string;
+  issuer?: string; // For bank selection (e.g., iDEAL)
+  data?: Record<string, unknown>; // Additional credential data
 }
 
 export interface PaymentData {

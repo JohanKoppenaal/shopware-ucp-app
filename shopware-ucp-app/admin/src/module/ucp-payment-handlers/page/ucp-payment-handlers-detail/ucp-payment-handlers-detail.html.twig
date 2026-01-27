@@ -1,0 +1,103 @@
+{% block ucp_payment_handlers_detail %}
+<sw-page class="ucp-payment-handlers-detail">
+    <template #smart-bar-header>
+        <h2>{{ handlerName }}</h2>
+    </template>
+
+    <template #smart-bar-description>
+        {{ handlerDescription }}
+    </template>
+
+    <template #smart-bar-actions>
+        <sw-button
+            variant="ghost"
+            :disabled="isLoading || isTesting"
+            :isLoading="isTesting"
+            @click="testConnection"
+        >
+            {{ $tc('ucp-payment-handlers.detail.testButton') }}
+        </sw-button>
+
+        <sw-button-process
+            variant="primary"
+            :disabled="isLoading"
+            :isLoading="isSaving"
+            @click="saveHandler"
+        >
+            {{ $tc('ucp-payment-handlers.detail.saveButton') }}
+        </sw-button-process>
+    </template>
+
+    <template #content>
+        <sw-card-view>
+            {% block ucp_payment_handlers_detail_general %}
+            <sw-card
+                :isLoading="isLoading"
+                :title="$tc('ucp-payment-handlers.detail.generalTab')"
+            >
+                <sw-switch-field
+                    v-if="handler"
+                    v-model="handler.enabled"
+                    :label="$tc('ucp-payment-handlers.detail.enabledLabel')"
+                    :helpText="$tc('ucp-payment-handlers.detail.enabledHelpText')"
+                ></sw-switch-field>
+            </sw-card>
+            {% endblock %}
+
+            {% block ucp_payment_handlers_detail_config %}
+            <sw-card
+                v-if="configFields.length > 0"
+                :isLoading="isLoading"
+                :title="$tc('ucp-payment-handlers.detail.configTab')"
+            >
+                <template v-for="field in configFields">
+                    {% block ucp_payment_handlers_detail_config_field_text %}
+                    <sw-text-field
+                        v-if="field.type === 'string'"
+                        :key="field.name"
+                        v-model="handlerConfig[field.name]"
+                        :label="field.label"
+                        :required="field.required"
+                        :helpText="field.helpText"
+                    ></sw-text-field>
+                    {% endblock %}
+
+                    {% block ucp_payment_handlers_detail_config_field_password %}
+                    <sw-password-field
+                        v-if="field.type === 'password'"
+                        :key="field.name"
+                        v-model="handlerConfig[field.name]"
+                        :label="field.label"
+                        :required="field.required"
+                        :helpText="field.helpText"
+                    ></sw-password-field>
+                    {% endblock %}
+
+                    {% block ucp_payment_handlers_detail_config_field_select %}
+                    <sw-single-select
+                        v-if="field.type === 'select'"
+                        :key="field.name"
+                        v-model="handlerConfig[field.name]"
+                        :label="field.label"
+                        :required="field.required"
+                        :helpText="field.helpText"
+                        :options="field.options.map(opt => ({ value: opt, label: opt }))"
+                    ></sw-single-select>
+                    {% endblock %}
+
+                    {% block ucp_payment_handlers_detail_config_field_boolean %}
+                    <sw-switch-field
+                        v-if="field.type === 'boolean'"
+                        :key="field.name"
+                        v-model="handlerConfig[field.name]"
+                        :label="field.label"
+                        :helpText="field.helpText"
+                    ></sw-switch-field>
+                    {% endblock %}
+                </template>
+            </sw-card>
+            {% endblock %}
+        </sw-card-view>
+    </template>
+</sw-page>
+{% endblock %}

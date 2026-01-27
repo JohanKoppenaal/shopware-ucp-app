@@ -1,0 +1,94 @@
+{% block ucp_payment_handlers_list %}
+<sw-page class="ucp-payment-handlers-list">
+    <template #smart-bar-header>
+        <h2>{{ $tc('ucp-payment-handlers.list.title') }}</h2>
+    </template>
+
+    <template #smart-bar-description>
+        {{ $tc('ucp-payment-handlers.list.description') }}
+    </template>
+
+    <template #content>
+        <sw-card-view>
+            <sw-card
+                :isLoading="isLoading"
+                :title="$tc('ucp-payment-handlers.list.title')"
+            >
+                <sw-data-grid
+                    v-if="handlers.length > 0"
+                    :dataSource="handlers"
+                    :columns="columns"
+                    :showSelection="false"
+                    :showActions="true"
+                    identifier="ucp-payment-handlers-grid"
+                >
+                    {% block ucp_payment_handlers_list_grid_columns_name %}
+                    <template #column-name="{ item }">
+                        <router-link
+                            :to="{ name: 'ucp.payment.handlers.detail', params: { id: item.id } }"
+                        >
+                            <strong>{{ item.name }}</strong>
+                        </router-link>
+                        <div class="ucp-payment-handlers-list__description">
+                            {{ item.description }}
+                        </div>
+                    </template>
+                    {% endblock %}
+
+                    {% block ucp_payment_handlers_list_grid_columns_enabled %}
+                    <template #column-enabled="{ item }">
+                        <sw-label
+                            :variant="getStatusVariant(item.enabled)"
+                            size="small"
+                        >
+                            {{ item.enabled
+                                ? $tc('ucp-payment-handlers.list.enabled')
+                                : $tc('ucp-payment-handlers.list.disabled')
+                            }}
+                        </sw-label>
+                    </template>
+                    {% endblock %}
+
+                    {% block ucp_payment_handlers_list_grid_columns_configured %}
+                    <template #column-configured="{ item }">
+                        <sw-label
+                            :variant="getConfiguredVariant(item.configured)"
+                            size="small"
+                        >
+                            {{ item.configured
+                                ? $tc('ucp-payment-handlers.list.configured')
+                                : $tc('ucp-payment-handlers.list.notConfigured')
+                            }}
+                        </sw-label>
+                    </template>
+                    {% endblock %}
+
+                    {% block ucp_payment_handlers_list_grid_actions %}
+                    <template #actions="{ item }">
+                        <sw-context-menu-item
+                            :routerLink="{ name: 'ucp.payment.handlers.detail', params: { id: item.id } }"
+                        >
+                            {{ $tc('global.default.edit') }}
+                        </sw-context-menu-item>
+
+                        <sw-context-menu-item
+                            @click="testConnection(item)"
+                            :disabled="!item.configured"
+                        >
+                            {{ $tc('ucp-payment-handlers.list.buttonTest') }}
+                        </sw-context-menu-item>
+                    </template>
+                    {% endblock %}
+                </sw-data-grid>
+
+                <sw-empty-state
+                    v-else-if="!isLoading"
+                    :title="$tc('ucp-payment-handlers.list.title')"
+                    :subline="$tc('ucp-payment-handlers.list.description')"
+                    icon="regular-credit-card"
+                ></sw-empty-state>
+            </sw-card>
+        </sw-card-view>
+    </template>
+</sw-page>
+{% endblock %}

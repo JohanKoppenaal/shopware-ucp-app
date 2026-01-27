@@ -1,0 +1,51 @@
+{% block ucp_payment_handler_card %}
+<sw-card class="ucp-payment-handler-card">
+    <div class="ucp-payment-handler-card__header">
+        <sw-icon
+            :name="handlerIcon"
+            size="24px"
+            class="ucp-payment-handler-card__icon"
+        ></sw-icon>
+
+        <div class="ucp-payment-handler-card__info">
+            <h3 class="ucp-payment-handler-card__name">{{ handlerName }}</h3>
+            <p class="ucp-payment-handler-card__description">{{ handlerDescription }}</p>
+        </div>
+
+        <div class="ucp-payment-handler-card__badges">
+            <sw-label
+                :variant="statusVariant"
+                size="small"
+            >
+                {{ statusLabel }}
+            </sw-label>
+
+            <sw-label
+                :variant="configuredVariant"
+                size="small"
+            >
+                {{ configuredLabel }}
+            </sw-label>
+        </div>
+    </div>
+
+    <div class="ucp-payment-handler-card__actions">
+        <sw-button
+            variant="ghost"
+            size="small"
+            @click="onConfigure"
+        >
+            {{ $tc('global.default.edit') }}
+        </sw-button>
+
+        <sw-button
+            variant="ghost"
+            size="small"
+            :disabled="!handler.configured"
+            @click="onTestConnection"
+        >
+            {{ $tc('ucp-payment-handlers.list.buttonTest') }}
+        </sw-button>
+    </div>
+</sw-card>
+{% endblock %}
