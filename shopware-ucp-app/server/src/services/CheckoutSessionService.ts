@@ -21,6 +21,13 @@ import type { ShopCredentials, ShopwareCart } from '../types/shopware.js';
 import { ShopwareApiClient } from './ShopwareApiClient.js';
 import { MockShopwareApiClient } from './MockShopwareApiClient.js';
 import { CartMapper } from './CartMapper.js';
+import { addressMapper, AddressMappingError } from './AddressMapper.js';
+import { fulfillmentService } from './FulfillmentService.js';
+import { discountService } from './DiscountService.js';
+import { sessionRepository } from '../repositories/SessionRepository.js';
+import { shopRepository } from '../repositories/ShopRepository.js';
+import { paymentHandlerRegistry } from './PaymentHandlerRegistry.js';
+import { logger } from '../utils/logger.js';
 
 const USE_MOCK_API = process.env['USE_MOCK_SHOPWARE'] === 'true' || process.env['NODE_ENV'] === 'development';
 
@@ -32,10 +39,6 @@ function createApiClient(credentials: ShopCredentials): ApiClient {
   }
   return new ShopwareApiClient(credentials);
 }
-import { sessionRepository } from '../repositories/SessionRepository.js';
-import { shopRepository } from '../repositories/ShopRepository.js';
-import { paymentHandlerRegistry } from './PaymentHandlerRegistry.js';
-import { logger } from '../utils/logger.js';
 
 const UCP_VERSION = process.env['UCP_VERSION'] ?? '2026-01-11';
 const DEFAULT_EXPIRY_HOURS = parseInt(process.env['SESSION_EXPIRY_HOURS'] ?? '6', 10);
@@ -199,77 +202,75 @@ export class CheckoutSessionService {
       secretKey: shop.secretKey,
     });
 
-    // Update shipping address
+    // Update shipping address using AddressMapper
     if (request.shipping_address) {
-      const country = await client.getCountryByIso(request.shipping_address.address_country);
-      if (!country) {
-        throw this.createError('INVALID_ADDRESS', 'Country not found');
+      // Validate address fields
+      const validationErrors = addressMapper.validateAddress(request.shipping_address);
+      if (validationErrors.length > 0 && validationErrors[0]) {
+        throw this.createError('INVALID_ADDRESS', validationErrors[0].message);
       }
 
-      const salutation = await client.getDefaultSalutation();
-      if (!salutation) {
-        throw this.createError('INTERNAL_ERROR', 'Default salutation not found');
+      try {
+        const mappingResult = await addressMapper.mapToShopware(client, request.shipping_address);
+        await client.setShippingAddress(dbSession.shopwareCartToken, mappingResult.shopwareAddress);
+        logger.debug({ sessionId, country: mappingResult.country.iso }, 'Shipping address set');
+      } catch (error) {
+        if (error instanceof AddressMappingError) {
+          throw this.createError('INVALID_ADDRESS', error.message);
+        }
+        throw error;
       }
-
-      let countryStateId: string | undefined;
-      if (request.shipping_address.address_region) {
-        const state = await client.getCountryState(
-          country.id,
-          request.shipping_address.address_region
-        );
-        countryStateId = state?.id;
-      }
-
-      const shopwareAddress = this.cartMapper.mapToShopwareAddress(
-        request.shipping_address,
-        country.id,
-        salutation.id,
-        countryStateId
-      );
-
-      await client.setShippingAddress(dbSession.shopwareCartToken, shopwareAddress);
     }
 
-    // Update billing address
+    // Update billing address using AddressMapper
     if (request.billing_address) {
-      const country = await client.getCountryByIso(request.billing_address.address_country);
-      if (!country) {
-        throw this.createError('INVALID_ADDRESS', 'Billing country not found');
+      const validationErrors = addressMapper.validateAddress(request.billing_address);
+      if (validationErrors.length > 0 && validationErrors[0]) {
+        throw this.createError('INVALID_ADDRESS', validationErrors[0].message);
       }
 
-      const salutation = await client.getDefaultSalutation();
-      if (!salutation) {
-        throw this.createError('INTERNAL_ERROR', 'Default salutation not found');
+      try {
+        const mappingResult = await addressMapper.mapToShopware(client, request.billing_address);
+        await client.setBillingAddress(dbSession.shopwareCartToken, mappingResult.shopwareAddress);
+        logger.debug({ sessionId }, 'Billing address set');
+      } catch (error) {
+        if (error instanceof AddressMappingError) {
+          throw this.createError('INVALID_ADDRESS', error.message);
+        }
+        throw error;
       }
-
-      const shopwareAddress = this.cartMapper.mapToShopwareAddress(
-        request.billing_address,
-        country.id,
-        salutation.id
-      );
-
-      await client.setBillingAddress(dbSession.shopwareCartToken, shopwareAddress);
     }
 
-    // Update shipping method
+    // Update shipping method using FulfillmentService
     if (request.selected_fulfillment_option_id) {
-      await client.setShippingMethod(
+      const validation = await fulfillmentService.validateSelection(
+        client,
+        request.selected_fulfillment_option_id,
+        { cartTotal: 0 } // Context can be expanded as needed
+      );
+
+      if (!validation.valid) {
+        throw this.createError('INTERNAL_ERROR', validation.error ?? 'Invalid shipping method');
+      }
+
+      await fulfillmentService.setShippingMethod(
+        client,
         dbSession.shopwareCartToken,
         request.selected_fulfillment_option_id
       );
     }
 
-    // Apply discount codes
+    // Apply discount codes using DiscountService
     if (request.discounts?.codes) {
-      for (const code of request.discounts.codes) {
-        await client.addLineItem(dbSession.shopwareCartToken, [
-          {
-            id: `promotion-${code}`,
-            referencedId: code,
-            quantity: 1,
-            type: 'promotion',
-          },
-        ]);
+      const result = await discountService.applyDiscountCodes(
+        client,
+        dbSession.shopwareCartToken,
+        request.discounts.codes
+      );
+
+      // Log any discount application errors (but don't fail the whole update)
+      for (const message of result.messages) {
+        logger.warn({ sessionId, message }, 'Discount code warning');
       }
     }
 
@@ -455,12 +456,16 @@ export class CheckoutSessionService {
   ): CheckoutSession {
     const lineItems = this.cartMapper.mapLineItems(cart);
     const totals = this.cartMapper.mapCartTotals(cart);
-    const fulfillment = this.cartMapper.mapFulfillment(
+
+    // Use FulfillmentService for shipping options
+    const fulfillment = fulfillmentService.mapFromCartDeliveries(
       shippingMethods,
       cart.deliveries,
       dbSession.selectedFulfillmentId ?? undefined
     );
-    const discounts = this.cartMapper.mapDiscounts(
+
+    // Use DiscountService for discount mapping
+    const discounts = discountService.mapDiscountsFromCart(
       cart,
       (dbSession.appliedDiscountCodes as string[]) ?? undefined
     );
