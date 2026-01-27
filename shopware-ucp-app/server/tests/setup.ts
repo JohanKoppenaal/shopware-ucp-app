@@ -47,7 +47,7 @@ jest.mock('@prisma/client', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    $queryRaw: jest.fn().mockResolvedValue([{ '1': 1 }]),
+    $queryRaw: jest.fn().mockResolvedValue([{ '1': 1 }] as never),
     $connect: jest.fn(),
     $disconnect: jest.fn(),
   };

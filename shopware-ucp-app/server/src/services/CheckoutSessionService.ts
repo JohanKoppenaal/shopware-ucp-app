@@ -24,6 +24,7 @@ import { CartMapper } from './CartMapper.js';
 import { addressMapper, AddressMappingError } from './AddressMapper.js';
 import { fulfillmentService } from './FulfillmentService.js';
 import { discountService } from './DiscountService.js';
+import { paymentProcessor, PaymentError } from './PaymentProcessor.js';
 import { sessionRepository } from '../repositories/SessionRepository.js';
 import { shopRepository } from '../repositories/ShopRepository.js';
 import { paymentHandlerRegistry } from './PaymentHandlerRegistry.js';
@@ -299,100 +300,28 @@ export class CheckoutSessionService {
       throw this.createError('SESSION_NOT_FOUND', 'Session not found');
     }
 
-    if (dbSession.status === 'completed') {
-      throw this.createError('INTERNAL_ERROR', 'Session already completed');
-    }
-
-    if (dbSession.expiresAt < new Date()) {
-      throw this.createError('SESSION_EXPIRED', 'Session has expired');
-    }
-
     const shop = await shopRepository.findByShopId(dbSession.shopId);
     if (!shop) {
       throw this.createError('INTERNAL_ERROR', 'Shop not found');
     }
 
-    // Update status to in progress
-    await sessionRepository.update(sessionId, { status: 'complete_in_progress' });
+    // Create API client for order creation
+    const client = createApiClient({
+      shopId: shop.shopId,
+      shopUrl: shop.shopUrl,
+      apiKey: shop.apiKey,
+      secretKey: shop.secretKey,
+    });
 
-    // Process payment
-    const handler = paymentHandlerRegistry.getHandler(request.payment_data.handler_id);
-    if (!handler) {
-      throw this.createError('HANDLER_NOT_FOUND', 'Payment handler not found');
-    }
+    // Use PaymentProcessor to handle the complete flow
+    const result = await paymentProcessor.processCheckout(
+      client,
+      dbSession,
+      request.payment_data,
+      request.risk_signals
+    );
 
-    try {
-      const paymentResult = await handler.processPayment(dbSession, request.payment_data);
-
-      if (!paymentResult.success) {
-        // Check if it's a 3DS challenge
-        if (paymentResult.status === 'requires_action' && paymentResult.action_url) {
-          await sessionRepository.update(sessionId, { status: 'requires_escalation' });
-
-          return {
-            status: 'requires_escalation',
-            messages: [
-              {
-                type: 'error',
-                code: 'requires_3ds',
-                message: 'Bank requires verification',
-                severity: 'requires_buyer_input',
-              },
-            ],
-            continue_url: paymentResult.action_url,
-          };
-        }
-
-        throw this.createError('PAYMENT_FAILED', paymentResult.error?.message ?? 'Payment failed');
-      }
-
-      // Create order in Shopware
-      const client = createApiClient({
-        shopId: shop.shopId,
-        shopUrl: shop.shopUrl,
-        apiKey: shop.apiKey,
-        secretKey: shop.secretKey,
-      });
-
-      const order = await client.createOrder(dbSession.shopwareCartToken);
-
-      // Update order with UCP custom fields
-      await client.updateOrderCustomFields(order.id, {
-        ucp_session_id: sessionId,
-        ucp_platform: dbSession.platformId,
-        ucp_payment_handler: request.payment_data.handler_id,
-      });
-
-      // Complete session
-      await sessionRepository.complete(
-        sessionId,
-        order.id,
-        order.orderNumber,
-        paymentResult.transaction_id
-      );
-
-      logger.info(
-        {
-          sessionId,
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-        },
-        'Checkout completed'
-      );
-
-      return {
-        status: 'completed',
-        order: {
-          id: order.id,
-          order_number: order.orderNumber,
-          created_at: order.createdAt,
-        },
-      };
-    } catch (error) {
-      // Revert status on error
-      await sessionRepository.update(sessionId, { status: 'incomplete' });
-      throw error;
-    }
+    return result.response;
   }
 
   /**
