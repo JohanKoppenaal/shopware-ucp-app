@@ -7,9 +7,305 @@ import { Router, type Request, type Response } from 'express';
 import { paymentHandlerRegistry } from '../services/PaymentHandlerRegistry.js';
 import { sessionRepository } from '../repositories/SessionRepository.js';
 import { webhookDeliveryRepository } from '../repositories/WebhookDeliveryRepository.js';
+import { shopRepository } from '../repositories/ShopRepository.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
+
+// ============================================================================
+// Admin Dashboard HTML Page (iframe)
+// ============================================================================
+
+/**
+ * Serve admin dashboard HTML for Shopware iframe
+ */
+router.get('/', async (req: Request, res: Response) => {
+  // Get shop ID from query or find the first registered shop
+  let shopId = req.query['shop-id'] as string | undefined;
+  let shopName = 'Unknown Shop';
+
+  if (!shopId) {
+    // Try to get the first registered shop
+    try {
+      const firstShop = await shopRepository.findFirst();
+      if (firstShop) {
+        shopId = firstShop.shopId;
+        shopName = firstShop.shopUrl || firstShop.shopId;
+      }
+    } catch {
+      // Ignore errors, will use undefined shopId
+    }
+  }
+
+  logger.info({ shopId }, 'Admin: Serving dashboard HTML');
+
+  // Fetch stats for the dashboard
+  let stats = {
+    checkoutsCreated: 0,
+    checkoutsCompleted: 0,
+    conversionRate: 0,
+    totalRevenue: 0,
+    activeHandlers: 0,
+    webhooksSent: 0,
+    webhooksFailed: 0,
+  };
+
+  try {
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const sessions = shopId
+      ? await sessionRepository.findMany({ shopId, createdAfter: startDate }, { limit: 1000 })
+      : [];
+
+    stats.checkoutsCreated = sessions.length;
+    stats.checkoutsCompleted = sessions.filter((s) => s.status === 'complete').length;
+    stats.conversionRate = stats.checkoutsCreated > 0
+      ? Math.round((stats.checkoutsCompleted / stats.checkoutsCreated) * 1000) / 10
+      : 0;
+    stats.totalRevenue = stats.checkoutsCompleted * 150;
+
+    const handlerTypes = paymentHandlerRegistry.getAvailableHandlerTypes();
+    stats.activeHandlers = handlerTypes.filter((h) => h.configured).length;
+
+    const webhookStats = await getWebhookStats(shopId, startDate);
+    stats.webhooksSent = webhookStats.sent;
+    stats.webhooksFailed = webhookStats.failed;
+  } catch (error) {
+    logger.warn({ error }, 'Admin: Could not fetch stats for dashboard');
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UCP Commerce Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f9fafb;
+      padding: 24px;
+      color: #1f2937;
+    }
+    .header {
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .header p {
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-card .label {
+      font-size: 13px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+    .stat-card .value.success { color: #059669; }
+    .stat-card .value.warning { color: #d97706; }
+    .stat-card .value.error { color: #dc2626; }
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+    }
+    .section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #111827;
+    }
+    .endpoints-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+    }
+    .endpoint .method {
+      background: #3b82f6;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .endpoint .method.post { background: #22c55e; }
+    .endpoint .url {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 13px;
+      color: #374151;
+    }
+    .endpoint .desc {
+      color: #6b7280;
+      font-size: 13px;
+      margin-left: auto;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge.success { background: #d1fae5; color: #065f46; }
+    .badge.info { background: #dbeafe; color: #1e40af; }
+    .handlers-list {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .handler-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: #f3f4f6;
+      border-radius: 8px;
+    }
+    .handler-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+    .handler-badge .dot.inactive { background: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🛒 UCP Commerce Dashboard</h1>
+    <p>Universal Commerce Protocol integration for Shopware</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Checkouts Started</div>
+      <div class="value">${stats.checkoutsCreated}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Checkouts Completed</div>
+      <div class="value success">${stats.checkoutsCompleted}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Conversion Rate</div>
+      <div class="value">${stats.conversionRate}%</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Revenue (7 days)</div>
+      <div class="value">€${stats.totalRevenue.toLocaleString()}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Webhooks Sent</div>
+      <div class="value success">${stats.webhooksSent}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Webhooks Failed</div>
+      <div class="value ${stats.webhooksFailed > 0 ? 'error' : ''}">${stats.webhooksFailed}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Payment Handlers</h2>
+    <div class="handlers-list">
+      <div class="handler-badge">
+        <span class="dot"></span>
+        <span>Google Pay</span>
+      </div>
+      <div class="handler-badge">
+        <span class="dot"></span>
+        <span>Mollie</span>
+      </div>
+      <div class="handler-badge">
+        <span class="dot"></span>
+        <span>Business Tokenizer</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>API Endpoints</h2>
+    <div class="endpoints-list">
+      <div class="endpoint">
+        <span class="method">GET</span>
+        <span class="url">/.well-known/ucp</span>
+        <span class="desc">UCP Profile (Service Discovery)</span>
+        <span class="badge success">Active</span>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="url">/mcp</span>
+        <span class="desc">MCP JSON-RPC Endpoint</span>
+        <span class="badge success">Active</span>
+      </div>
+      <div class="endpoint">
+        <span class="method">GET</span>
+        <span class="url">/mcp/sse</span>
+        <span class="desc">MCP SSE Streaming</span>
+        <span class="badge success">Active</span>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="url">/checkout-sessions</span>
+        <span class="desc">Create Checkout Session</span>
+        <span class="badge success">Active</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Quick Links</h2>
+    <p style="color: #6b7280; margin-bottom: 12px;">Test the API endpoints:</p>
+    <div class="endpoints-list">
+      <div class="endpoint">
+        <span class="badge info">curl</span>
+        <code class="url">curl http://localhost:3000/.well-known/ucp | jq</code>
+      </div>
+      <div class="endpoint">
+        <span class="badge info">curl</span>
+        <code class="url">curl http://localhost:3000/health</code>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
+});
 
 // ============================================================================
 // Dashboard Stats Endpoints

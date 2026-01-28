@@ -114,6 +114,16 @@ export class ShopRepository {
   }
 
   /**
+   * Get the first registered shop (for admin dashboard fallback)
+   */
+  async findFirst(): Promise<Shop | null> {
+    return prisma.shop.findFirst({
+      where: { active: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Delete shop permanently
    */
   async delete(shopId: string): Promise<void> {

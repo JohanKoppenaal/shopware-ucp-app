@@ -108,6 +108,9 @@ app.use('/mcp', mcpRoutes);
 // Admin API (for configuration UI)
 app.use('/api/admin', adminRoutes);
 
+// Admin dashboard HTML (for Shopware iframe)
+app.use('/admin', adminRoutes);
+
 // ============================================================================
 // Error Handling
 // ============================================================================
