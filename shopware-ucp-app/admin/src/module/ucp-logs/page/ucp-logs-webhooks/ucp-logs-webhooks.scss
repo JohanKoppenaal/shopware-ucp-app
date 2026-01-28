@@ -1,0 +1,25 @@
+.ucp-logs-webhooks {
+    .ucp-url {
+        font-family: 'SF Mono', Monaco, 'Andale Mono', monospace;
+        font-size: 11px;
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        word-break: break-all;
+    }
+
+    .ucp-text-muted {
+        color: #999;
+    }
+
+    .ucp-text-danger {
+        color: #e74c3c;
+        font-weight: 600;
+    }
+
+    .ucp-error-message {
+        color: #e74c3c;
+        font-size: 12px;
+        cursor: help;
+    }
+}

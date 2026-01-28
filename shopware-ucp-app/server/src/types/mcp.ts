@@ -228,10 +228,7 @@ export interface McpToolHandler {
   name: string;
   description: string;
   inputSchema: JsonSchema;
-  handler: (
-    args: Record<string, unknown>,
-    meta: McpMeta
-  ) => Promise<McpToolCallResponse>;
+  handler: (args: Record<string, unknown>, meta: McpMeta) => Promise<McpToolCallResponse>;
 }
 
 export interface McpToolContext {

@@ -77,7 +77,11 @@ export class KeyManager {
   /**
    * Load key from database
    */
-  private async loadKey(key: { keyId: string; privateKey: string; publicKey: string }): Promise<void> {
+  private async loadKey(key: {
+    keyId: string;
+    privateKey: string;
+    publicKey: string;
+  }): Promise<void> {
     const privateJwk = JSON.parse(key.privateKey) as JsonWebKey;
     const publicJwk = JSON.parse(key.publicKey) as JsonWebKey;
 

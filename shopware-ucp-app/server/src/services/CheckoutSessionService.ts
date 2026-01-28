@@ -30,7 +30,8 @@ import { shopRepository } from '../repositories/ShopRepository.js';
 import { paymentHandlerRegistry } from './PaymentHandlerRegistry.js';
 import { logger } from '../utils/logger.js';
 
-const USE_MOCK_API = process.env['USE_MOCK_SHOPWARE'] === 'true' || process.env['NODE_ENV'] === 'development';
+const USE_MOCK_API =
+  process.env['USE_MOCK_SHOPWARE'] === 'true' || process.env['NODE_ENV'] === 'development';
 
 type ApiClient = ShopwareApiClient | MockShopwareApiClient;
 
@@ -367,7 +368,8 @@ export class CheckoutSessionService {
   ): CheckoutStatus {
     // Check if we have minimum required data for completion
     const hasShippingAddress = session.shippingAddress || update.shipping_address;
-    const hasShippingMethod = session.selectedFulfillmentId || update.selected_fulfillment_option_id;
+    const hasShippingMethod =
+      session.selectedFulfillmentId || update.selected_fulfillment_option_id;
 
     if (hasShippingAddress && hasShippingMethod) {
       return 'ready_for_complete';

@@ -5,9 +5,151 @@
 
 import { Router, type Request, type Response } from 'express';
 import { paymentHandlerRegistry } from '../services/PaymentHandlerRegistry.js';
+import { sessionRepository } from '../repositories/SessionRepository.js';
+import { webhookDeliveryRepository } from '../repositories/WebhookDeliveryRepository.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
+
+// ============================================================================
+// Dashboard Stats Endpoints
+// ============================================================================
+
+/**
+ * Get dashboard statistics
+ */
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const shopId = req.query['shop_id'] as string;
+    const period = (req.query['period'] as string) || '7days';
+
+    if (!shopId) {
+      res.status(400).json({ error: 'shop_id is required' });
+      return;
+    }
+
+    logger.info({ shopId, period }, 'Admin: Fetching dashboard stats');
+
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case '30days':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '7days':
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    }
+
+    // Get session statistics
+    const sessions = await sessionRepository.findMany(
+      { shopId, createdAfter: startDate },
+      { limit: 1000 }
+    );
+
+    const checkoutsCreated = sessions.length;
+    const checkoutsCompleted = sessions.filter((s) => s.status === 'complete').length;
+    const conversionRate = checkoutsCreated > 0 ? Math.round((checkoutsCompleted / checkoutsCreated) * 1000) / 10 : 0;
+
+    // Calculate revenue (mock for now - would need to join with orders)
+    const totalRevenue = checkoutsCompleted * 150; // Placeholder average
+    const averageOrderValue = checkoutsCompleted > 0 ? totalRevenue / checkoutsCompleted : 0;
+
+    // Get active payment handlers
+    const handlerTypes = paymentHandlerRegistry.getAvailableHandlerTypes();
+    const activeHandlers = handlerTypes.filter((h) => h.configured).length;
+
+    // Get webhook statistics
+    const webhookStats = await getWebhookStats(shopId, startDate);
+
+    // Get recent sessions for the activity list
+    const recentSessions = await sessionRepository.findMany(
+      { shopId },
+      { limit: 10, orderBy: { createdAt: 'desc' } }
+    );
+
+    res.json({
+      stats: {
+        checkoutsCreated,
+        checkoutsCompleted,
+        conversionRate,
+        totalRevenue,
+        activeHandlers,
+        webhooksSent: webhookStats.sent,
+        webhooksFailed: webhookStats.failed,
+        averageOrderValue,
+      },
+      recentSessions: recentSessions.map((s) => ({
+        id: s.id,
+        ucpSessionId: s.ucpSessionId,
+        status: s.status,
+        platformName: extractPlatformName(s.platformProfileUrl),
+        amount: 0, // Would need to calculate from cart data
+        createdAt: s.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    logger.error({ error }, 'Admin: Failed to fetch dashboard stats');
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+/**
+ * Get checkout sessions for logs view
+ */
+router.get('/sessions', async (req: Request, res: Response) => {
+  try {
+    const shopId = req.query['shop_id'] as string;
+    const status = req.query['status'] as string | undefined;
+    const limit = parseInt(req.query['limit'] as string) || 50;
+
+    if (!shopId) {
+      res.status(400).json({ error: 'shop_id is required' });
+      return;
+    }
+
+    logger.info({ shopId, status, limit }, 'Admin: Fetching checkout sessions');
+
+    const sessions = await sessionRepository.findMany(
+      {
+        shopId,
+        status: status as 'incomplete' | 'complete' | 'failed' | 'expired' | undefined,
+      },
+      { limit, orderBy: { createdAt: 'desc' } }
+    );
+
+    res.json({
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        ucpSessionId: s.ucpSessionId,
+        shopId: s.shopId,
+        status: s.status,
+        platformName: extractPlatformName(s.platformProfileUrl),
+        orderNumber: s.shopwareOrderNumber,
+        orderId: s.shopwareOrderId,
+        createdAt: s.createdAt.toISOString(),
+        expiresAt: s.expiresAt.toISOString(),
+        completedAt: s.completedAt?.toISOString() ?? null,
+        paymentHandlerId: s.paymentHandlerId,
+        paymentTransactionId: s.paymentTransactionId,
+        shippingAddress: s.shippingAddress ? JSON.parse(s.shippingAddress as string) : null,
+        billingAddress: s.billingAddress ? JSON.parse(s.billingAddress as string) : null,
+        cartData: null, // Would need to fetch from Shopware
+      })),
+    });
+  } catch (error) {
+    logger.error({ error }, 'Admin: Failed to fetch sessions');
+    res.status(500).json({ error: 'Failed to fetch sessions' });
+  }
+});
+
+// ============================================================================
+// Payment Handler Endpoints
+// ============================================================================
 
 /**
  * Get all available payment handlers
@@ -47,9 +189,10 @@ router.get('/payment-handlers/:handlerId', async (req: Request, res: Response) =
   }
 
   const handlerConfig = handler.getHandlerConfig();
-  const isConfigured = 'isConfigured' in handler && typeof handler.isConfigured === 'function'
-    ? handler.isConfigured()
-    : true;
+  const isConfigured =
+    'isConfigured' in handler && typeof handler.isConfigured === 'function'
+      ? handler.isConfigured()
+      : true;
 
   const configSchema = getHandlerConfigSchema(handlerId);
 
@@ -154,9 +297,14 @@ router.put('/shops/:shopId/payment-handlers', async (req: Request, res: Response
     return;
   }
 
-  const body = req.body as { handlers?: Array<{ handlerId: string; enabled: boolean; config: Record<string, unknown> }> };
+  const body = req.body as {
+    handlers?: Array<{ handlerId: string; enabled: boolean; config: Record<string, unknown> }>;
+  };
 
-  logger.info({ shopId, handlerCount: body.handlers?.length }, 'Admin: Updating shop handler configuration');
+  logger.info(
+    { shopId, handlerCount: body.handlers?.length },
+    'Admin: Updating shop handler configuration'
+  );
 
   if (body.handlers && Array.isArray(body.handlers)) {
     const configurations = body.handlers.map((h) => ({
@@ -178,30 +326,33 @@ router.put('/shops/:shopId/payment-handlers', async (req: Request, res: Response
 /**
  * Enable/disable handler for shop
  */
-router.post('/shops/:shopId/payment-handlers/:handlerId/enable', async (req: Request, res: Response) => {
-  const shopId = req.params['shopId'];
-  const handlerId = req.params['handlerId'];
+router.post(
+  '/shops/:shopId/payment-handlers/:handlerId/enable',
+  async (req: Request, res: Response) => {
+    const shopId = req.params['shopId'];
+    const handlerId = req.params['handlerId'];
 
-  if (!shopId || !handlerId) {
-    res.status(400).json({ error: 'Shop ID and Handler ID required' });
-    return;
+    if (!shopId || !handlerId) {
+      res.status(400).json({ error: 'Shop ID and Handler ID required' });
+      return;
+    }
+
+    const body = req.body as { enabled?: boolean; config?: Record<string, unknown> };
+
+    logger.info({ shopId, handlerId, enabled: body.enabled }, 'Admin: Toggling handler for shop');
+
+    if (body.enabled) {
+      paymentHandlerRegistry.enableHandlerForShop(shopId, handlerId, body.config);
+    } else {
+      paymentHandlerRegistry.disableHandlerForShop(shopId, handlerId);
+    }
+
+    res.json({
+      success: true,
+      message: body.enabled ? 'Handler enabled' : 'Handler disabled',
+    });
   }
-
-  const body = req.body as { enabled?: boolean; config?: Record<string, unknown> };
-
-  logger.info({ shopId, handlerId, enabled: body.enabled }, 'Admin: Toggling handler for shop');
-
-  if (body.enabled) {
-    paymentHandlerRegistry.enableHandlerForShop(shopId, handlerId, body.config);
-  } else {
-    paymentHandlerRegistry.disableHandlerForShop(shopId, handlerId);
-  }
-
-  res.json({
-    success: true,
-    message: body.enabled ? 'Handler enabled' : 'Handler disabled',
-  });
-});
+);
 
 /**
  * Get handler config schema based on handler ID
@@ -242,6 +393,52 @@ function getHandlerConfigSchema(handlerId: string): Record<string, unknown> {
   };
 
   return schemas[handlerId] || {};
+}
+
+/**
+ * Extract platform name from profile URL
+ */
+function extractPlatformName(profileUrl: string | null): string | null {
+  if (!profileUrl) return null;
+
+  try {
+    const url = new URL(profileUrl);
+    const hostname = url.hostname;
+
+    // Map known platforms
+    if (hostname.includes('google') || hostname.includes('gemini')) return 'Google Gemini';
+    if (hostname.includes('openai') || hostname.includes('chatgpt')) return 'ChatGPT';
+    if (hostname.includes('microsoft') || hostname.includes('copilot')) return 'Microsoft Copilot';
+    if (hostname.includes('claude') || hostname.includes('anthropic')) return 'Claude';
+
+    // Return domain name if not recognized
+    return hostname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get webhook delivery statistics
+ */
+async function getWebhookStats(
+  shopId: string,
+  startDate: Date
+): Promise<{ sent: number; failed: number; pending: number }> {
+  try {
+    const deliveries = await webhookDeliveryRepository.findMany(
+      { shopId, createdAfter: startDate },
+      { limit: 1000 }
+    );
+
+    return {
+      sent: deliveries.filter((d) => d.status === 'sent').length,
+      failed: deliveries.filter((d) => d.status === 'failed').length,
+      pending: deliveries.filter((d) => d.status === 'pending' || d.status === 'retrying').length,
+    };
+  } catch {
+    return { sent: 0, failed: 0, pending: 0 };
+  }
 }
 
 export default router;

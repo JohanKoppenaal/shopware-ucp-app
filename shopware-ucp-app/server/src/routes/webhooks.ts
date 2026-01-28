@@ -4,9 +4,13 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import { createHmac } from 'crypto';
 import { shopRepository } from '../repositories/ShopRepository.js';
 import { webhookDeliveryRepository } from '../repositories/WebhookDeliveryRepository.js';
-import { orderStatusSyncService, type OrderStateChange } from '../services/OrderStatusSyncService.js';
+import {
+  orderStatusSyncService,
+  type OrderStateChange,
+} from '../services/OrderStatusSyncService.js';
 import { webhookService } from '../services/WebhookService.js';
 import { logger } from '../utils/logger.js';
 import type { ShopwareWebhookPayload, ShopwareOrder } from '../types/shopware.js';
@@ -35,7 +39,7 @@ router.post('/shopware/order-placed', async (req: Request, res: Response) => {
     }
 
     // Validate signature
-    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    const isValid = validateWebhookRequest(req, shop.secretKey);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid signature' });
       return;
@@ -83,7 +87,7 @@ router.post('/shopware/order-state-changed', async (req: Request, res: Response)
       return;
     }
 
-    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    const isValid = validateWebhookRequest(req, shop.secretKey);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid signature' });
       return;
@@ -133,7 +137,7 @@ router.post('/shopware/order-delivery-state-changed', async (req: Request, res: 
       return;
     }
 
-    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    const isValid = validateWebhookRequest(req, shop.secretKey);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid signature' });
       return;
@@ -187,7 +191,7 @@ router.post('/shopware/order-transaction-state-changed', async (req: Request, re
       return;
     }
 
-    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    const isValid = validateWebhookRequest(req, shop.secretKey);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid signature' });
       return;
@@ -237,7 +241,7 @@ router.post('/shopware/product-written', async (req: Request, res: Response) => 
       return;
     }
 
-    const isValid = await validateWebhookRequest(req, shop.secretKey);
+    const isValid = validateWebhookRequest(req, shop.secretKey);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid signature' });
       return;
@@ -354,14 +358,13 @@ router.post('/deliveries/:id/retry', async (req: Request, res: Response) => {
 /**
  * Validate webhook request signature
  */
-async function validateWebhookRequest(req: Request, shopSecret: string): Promise<boolean> {
+function validateWebhookRequest(req: Request, shopSecret: string): boolean {
   const signature = req.headers['shopware-shop-signature'] as string | undefined;
 
   if (!signature) {
     return false;
   }
 
-  const { createHmac } = await import('crypto');
   const rawBody = (req as Request & { rawBody?: string }).rawBody ?? JSON.stringify(req.body);
   const expectedSignature = createHmac('sha256', shopSecret).update(rawBody).digest('hex');
 

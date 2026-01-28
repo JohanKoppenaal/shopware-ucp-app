@@ -73,10 +73,22 @@ const updateCheckoutSchema: JsonSchema = {
         address_locality: { type: 'string', description: 'City' },
         address_region: { type: 'string', description: 'State or province' },
         postal_code: { type: 'string', description: 'Postal/ZIP code' },
-        address_country: { type: 'string', description: 'ISO 3166-1 alpha-2 country code', minLength: 2, maxLength: 2 },
+        address_country: {
+          type: 'string',
+          description: 'ISO 3166-1 alpha-2 country code',
+          minLength: 2,
+          maxLength: 2,
+        },
         phone: { type: 'string', description: 'Phone number' },
       },
-      required: ['first_name', 'last_name', 'street_address', 'address_locality', 'postal_code', 'address_country'],
+      required: [
+        'first_name',
+        'last_name',
+        'street_address',
+        'address_locality',
+        'postal_code',
+        'address_country',
+      ],
     },
     billing_address: {
       type: 'object',
@@ -91,9 +103,19 @@ const updateCheckoutSchema: JsonSchema = {
         address_country: { type: 'string', minLength: 2, maxLength: 2 },
         phone: { type: 'string' },
       },
-      required: ['first_name', 'last_name', 'street_address', 'address_locality', 'postal_code', 'address_country'],
+      required: [
+        'first_name',
+        'last_name',
+        'street_address',
+        'address_locality',
+        'postal_code',
+        'address_country',
+      ],
     },
-    selected_fulfillment_option_id: { type: 'string', description: 'ID of selected shipping method' },
+    selected_fulfillment_option_id: {
+      type: 'string',
+      description: 'ID of selected shipping method',
+    },
     discount_codes: {
       type: 'array',
       items: { type: 'string' },
@@ -110,8 +132,15 @@ const completeCheckoutSchema: JsonSchema = {
     payment_data: {
       type: 'object',
       properties: {
-        handler_id: { type: 'string', description: 'Payment handler ID (e.g., "google-pay", "mollie")' },
-        type: { type: 'string', enum: ['card', 'wallet', 'bank_transfer'], description: 'Payment type' },
+        handler_id: {
+          type: 'string',
+          description: 'Payment handler ID (e.g., "google-pay", "mollie")',
+        },
+        type: {
+          type: 'string',
+          enum: ['card', 'wallet', 'bank_transfer'],
+          description: 'Payment type',
+        },
         brand: { type: 'string', description: 'Card brand (visa, mastercard, etc.)' },
         last_digits: { type: 'string', description: 'Last 4 digits of card' },
         credential: {
@@ -172,7 +201,8 @@ export class McpToolRegistry {
     // Create checkout session
     this.register({
       name: 'create_checkout',
-      description: 'Create a new checkout session with line items. Call this when a user wants to purchase products.',
+      description:
+        'Create a new checkout session with line items. Call this when a user wants to purchase products.',
       inputSchema: createCheckoutSchema,
       handler: async (args, meta) => this.handleCreateCheckout(args, meta),
     });
@@ -180,7 +210,8 @@ export class McpToolRegistry {
     // Get checkout session
     this.register({
       name: 'get_checkout',
-      description: 'Get the current state of a checkout session including items, totals, shipping options, and status.',
+      description:
+        'Get the current state of a checkout session including items, totals, shipping options, and status.',
       inputSchema: getCheckoutSchema,
       handler: async (args, _meta) => this.handleGetCheckout(args),
     });
@@ -188,7 +219,8 @@ export class McpToolRegistry {
     // Update checkout session
     this.register({
       name: 'update_checkout',
-      description: 'Update a checkout session with shipping address, billing address, shipping method, or discount codes.',
+      description:
+        'Update a checkout session with shipping address, billing address, shipping method, or discount codes.',
       inputSchema: updateCheckoutSchema,
       handler: async (args, _meta) => this.handleUpdateCheckout(args),
     });
@@ -196,7 +228,8 @@ export class McpToolRegistry {
     // Complete checkout
     this.register({
       name: 'complete_checkout',
-      description: 'Complete the checkout with payment information. Returns order confirmation or redirect URL for 3DS.',
+      description:
+        'Complete the checkout with payment information. Returns order confirmation or redirect URL for 3DS.',
       inputSchema: completeCheckoutSchema,
       handler: async (args, _meta) => this.handleCompleteCheckout(args),
     });
@@ -212,7 +245,8 @@ export class McpToolRegistry {
     // List shipping options
     this.register({
       name: 'list_shipping_options',
-      description: 'Get available shipping options for a checkout session. Requires shipping address to be set.',
+      description:
+        'Get available shipping options for a checkout session. Requires shipping address to be set.',
       inputSchema: listShippingOptionsSchema,
       handler: async (args, _meta) => this.handleListShippingOptions(args),
     });
@@ -320,17 +354,23 @@ export class McpToolRegistry {
     );
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          session_id: session.id,
-          status: session.status,
-          totals: session.totals,
-          fulfillment_options: session.fulfillment?.options?.length ?? 0,
-          payment_handlers: session.payment?.handlers?.length ?? 0,
-          expires_at: session.expires_at,
-        }, null, 2),
-      }],
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              session_id: session.id,
+              status: session.status,
+              totals: session.totals,
+              fulfillment_options: session.fulfillment?.options?.length ?? 0,
+              payment_handlers: session.payment?.handlers?.length ?? 0,
+              expires_at: session.expires_at,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 
@@ -356,29 +396,35 @@ export class McpToolRegistry {
       shipping_address: args['shipping_address'] as UpdateCheckoutRequest['shipping_address'],
       billing_address: args['billing_address'] as UpdateCheckoutRequest['billing_address'],
       selected_fulfillment_option_id: args['selected_fulfillment_option_id'] as string,
-      discounts: args['discount_codes']
-        ? { codes: args['discount_codes'] as string[] }
-        : undefined,
+      discounts: args['discount_codes'] ? { codes: args['discount_codes'] as string[] } : undefined,
     };
 
     const session = await checkoutSessionService.update(sessionId, updateData);
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          session_id: session.id,
-          status: session.status,
-          totals: session.totals,
-          shipping_address: session.shipping_address ? 'Set' : 'Not set',
-          selected_shipping: session.fulfillment?.selected_option_id ?? 'Not selected',
-          messages: session.messages,
-        }, null, 2),
-      }],
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              session_id: session.id,
+              status: session.status,
+              totals: session.totals,
+              shipping_address: session.shipping_address ? 'Set' : 'Not set',
+              selected_shipping: session.fulfillment?.selected_option_id ?? 'Not selected',
+              messages: session.messages,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 
-  private async handleCompleteCheckout(args: Record<string, unknown>): Promise<McpToolCallResponse> {
+  private async handleCompleteCheckout(
+    args: Record<string, unknown>
+  ): Promise<McpToolCallResponse> {
     const sessionId = args['session_id'] as string;
     const paymentData = args['payment_data'] as CompleteCheckoutRequest['payment_data'];
 
@@ -395,27 +441,39 @@ export class McpToolRegistry {
 
     if (result.status === 'requires_escalation') {
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            status: 'requires_action',
-            message: 'Payment requires additional verification',
-            continue_url: result.continue_url,
-          }, null, 2),
-        }],
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                status: 'requires_action',
+                message: 'Payment requires additional verification',
+                continue_url: result.continue_url,
+              },
+              null,
+              2
+            ),
+          },
+        ],
       };
     }
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          status: result.status,
-          order_id: result.order?.id,
-          order_number: result.order?.order_number,
-          created_at: result.order?.created_at,
-        }, null, 2),
-      }],
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              status: result.status,
+              order_id: result.order?.id,
+              order_number: result.order?.order_number,
+              created_at: result.order?.created_at,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 
@@ -428,7 +486,9 @@ export class McpToolRegistry {
     };
   }
 
-  private async handleListShippingOptions(args: Record<string, unknown>): Promise<McpToolCallResponse> {
+  private async handleListShippingOptions(
+    args: Record<string, unknown>
+  ): Promise<McpToolCallResponse> {
     const sessionId = args['session_id'] as string;
     const session = await checkoutSessionService.get(sessionId);
 
@@ -442,26 +502,34 @@ export class McpToolRegistry {
     const options = session.fulfillment?.options ?? [];
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          shipping_options: options.map((opt) => ({
-            id: opt.id,
-            label: opt.label,
-            description: opt.description,
-            carrier: opt.carrier,
-            price: `${(opt.price / 100).toFixed(2)} ${opt.currency}`,
-            delivery_estimate: opt.delivery_estimate
-              ? `${opt.delivery_estimate.min_days}-${opt.delivery_estimate.max_days} days`
-              : 'Unknown',
-          })),
-          selected: session.fulfillment?.selected_option_id,
-        }, null, 2),
-      }],
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              shipping_options: options.map((opt) => ({
+                id: opt.id,
+                label: opt.label,
+                description: opt.description,
+                carrier: opt.carrier,
+                price: `${(opt.price / 100).toFixed(2)} ${opt.currency}`,
+                delivery_estimate: opt.delivery_estimate
+                  ? `${opt.delivery_estimate.min_days}-${opt.delivery_estimate.max_days} days`
+                  : 'Unknown',
+              })),
+              selected: session.fulfillment?.selected_option_id,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 
-  private async handleListPaymentMethods(args: Record<string, unknown>): Promise<McpToolCallResponse> {
+  private async handleListPaymentMethods(
+    args: Record<string, unknown>
+  ): Promise<McpToolCallResponse> {
     const sessionId = args['session_id'] as string;
     const session = await checkoutSessionService.get(sessionId);
 
@@ -475,17 +543,24 @@ export class McpToolRegistry {
     const handlers = session.payment?.handlers ?? [];
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          payment_methods: handlers.map((h) => ({
-            id: h.id,
-            name: h.name,
-            version: h.version,
-            supported_types: h.config?.['supported_brands'] ?? h.config?.['supported_methods'] ?? [],
-          })),
-        }, null, 2),
-      }],
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              payment_methods: handlers.map((h) => ({
+                id: h.id,
+                name: h.name,
+                version: h.version,
+                supported_types:
+                  h.config?.['supported_brands'] ?? h.config?.['supported_methods'] ?? [],
+              })),
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 }

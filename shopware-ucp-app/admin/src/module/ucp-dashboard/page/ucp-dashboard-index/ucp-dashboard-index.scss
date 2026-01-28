@@ -1,0 +1,24 @@
+.ucp-dashboard-index {
+    .ucp-dashboard-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        padding: 10px 0;
+
+        &--secondary {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    @media (max-width: 1200px) {
+        .ucp-dashboard-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .ucp-dashboard-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+}

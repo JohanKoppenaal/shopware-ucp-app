@@ -3,16 +3,8 @@
  * Handles shipping methods, delivery estimates, and fulfillment options
  */
 
-import type {
-  Fulfillment,
-  FulfillmentOption,
-  Address,
-} from '../types/ucp.js';
-import type {
-  ShippingMethod,
-  CartDelivery,
-  Country,
-} from '../types/shopware.js';
+import type { Fulfillment, FulfillmentOption, Address } from '../types/ucp.js';
+import type { ShippingMethod, CartDelivery, Country } from '../types/shopware.js';
 import type { ShopwareApiClient } from './ShopwareApiClient.js';
 import type { MockShopwareApiClient } from './MockShopwareApiClient.js';
 import { logger } from '../utils/logger.js';
@@ -42,18 +34,13 @@ export class FulfillmentService {
   /**
    * Get available fulfillment options for a cart
    */
-  async getAvailableOptions(
-    client: ApiClient,
-    context: FulfillmentContext
-  ): Promise<Fulfillment> {
+  async getAvailableOptions(client: ApiClient, context: FulfillmentContext): Promise<Fulfillment> {
     const shippingMethods = await client.getShippingMethods();
 
     // Filter methods based on context (country, cart value, etc.)
     const availableMethods = this.filterAvailableMethods(shippingMethods, context);
 
-    const options = availableMethods.map((method) =>
-      this.mapToFulfillmentOption(method, context)
-    );
+    const options = availableMethods.map((method) => this.mapToFulfillmentOption(method, context));
 
     logger.debug(
       { availableCount: options.length, totalMethods: shippingMethods.length },
@@ -127,11 +114,7 @@ export class FulfillmentService {
   /**
    * Set shipping method on cart
    */
-  async setShippingMethod(
-    client: ApiClient,
-    cartToken: string,
-    methodId: string
-  ): Promise<void> {
+  async setShippingMethod(client: ApiClient, cartToken: string, methodId: string): Promise<void> {
     await client.setShippingMethod(cartToken, methodId);
     logger.info({ cartToken, methodId }, 'Shipping method set on cart');
   }
@@ -221,8 +204,7 @@ export class FulfillmentService {
   hasPickupOption(options: FulfillmentOption[]): boolean {
     return options.some(
       (opt) =>
-        opt.label.toLowerCase().includes('pickup') ||
-        opt.label.toLowerCase().includes('afhalen')
+        opt.label.toLowerCase().includes('pickup') || opt.label.toLowerCase().includes('afhalen')
     );
   }
 

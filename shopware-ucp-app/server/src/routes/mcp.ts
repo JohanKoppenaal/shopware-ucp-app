@@ -107,7 +107,11 @@ router.post('/sse', async (req: Request, res: Response) => {
     const request = req.body as JsonRpcRequest;
 
     if (request.jsonrpc !== '2.0' || !request.method) {
-      sendSseEvent(res, 'error', createErrorResponse(request.id ?? null, -32600, 'Invalid Request'));
+      sendSseEvent(
+        res,
+        'error',
+        createErrorResponse(request.id ?? null, -32600, 'Invalid Request')
+      );
       res.end();
       return;
     }
@@ -287,7 +291,9 @@ function handleToolsList(request: JsonRpcRequest): JsonRpcResponse {
 }
 
 async function handleToolCall(request: JsonRpcRequest, meta: McpMeta): Promise<JsonRpcResponse> {
-  const params = request.params as { name?: string; arguments?: Record<string, unknown> } | undefined;
+  const params = request.params as
+    | { name?: string; arguments?: Record<string, unknown> }
+    | undefined;
 
   if (!params?.name) {
     return createErrorResponse(request.id, -32602, 'Invalid params: tool name required');

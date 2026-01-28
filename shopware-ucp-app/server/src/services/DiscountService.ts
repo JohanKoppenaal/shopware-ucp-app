@@ -3,15 +3,8 @@
  * Handles coupon code validation, application, and discount calculations
  */
 
-import type {
-  Discounts,
-  AppliedDiscount,
-  Message,
-} from '../types/ucp.js';
-import type {
-  ShopwareCart,
-  ShopwareLineItem,
-} from '../types/shopware.js';
+import type { Discounts, AppliedDiscount, Message } from '../types/ucp.js';
+import type { ShopwareCart, ShopwareLineItem } from '../types/shopware.js';
 import type { ShopwareApiClient } from './ShopwareApiClient.js';
 import type { MockShopwareApiClient } from './MockShopwareApiClient.js';
 import { logger } from '../utils/logger.js';
@@ -92,11 +85,7 @@ export class DiscountService {
   /**
    * Remove a discount code from cart
    */
-  async removeDiscountCode(
-    client: ApiClient,
-    cartToken: string,
-    code: string
-  ): Promise<boolean> {
+  async removeDiscountCode(client: ApiClient, cartToken: string, code: string): Promise<boolean> {
     try {
       const cart = await client.getCart(cartToken);
       const promotionItem = cart.lineItems.find(
@@ -165,11 +154,13 @@ export class DiscountService {
    * Determine discount type from promotion
    */
   private getDiscountType(item: ShopwareLineItem): 'coupon' | 'promotion' | 'loyalty' {
-    const payload = item.payload as {
-      discountType?: string;
-      promotionId?: string;
-      code?: string;
-    } | undefined;
+    const payload = item.payload as
+      | {
+          discountType?: string;
+          promotionId?: string;
+          code?: string;
+        }
+      | undefined;
 
     // If it has a code, it's a coupon
     if (payload?.code) {

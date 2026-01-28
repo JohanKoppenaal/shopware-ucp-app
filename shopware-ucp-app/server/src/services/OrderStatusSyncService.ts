@@ -11,11 +11,7 @@ import { logger } from '../utils/logger.js';
 import type { OrderWebhookPayload } from '../types/ucp.js';
 
 // Shopware order states
-export type ShopwareOrderState =
-  | 'open'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled';
+export type ShopwareOrderState = 'open' | 'in_progress' | 'completed' | 'cancelled';
 
 // Shopware delivery states
 export type ShopwareDeliveryState =
@@ -69,19 +65,13 @@ class OrderStatusSyncService {
   /**
    * Handle order state change from Shopware
    */
-  async handleOrderStateChange(
-    shopId: string,
-    change: OrderStateChange
-  ): Promise<OrderSyncResult> {
+  async handleOrderStateChange(shopId: string, change: OrderStateChange): Promise<OrderSyncResult> {
     // Find the UCP session for this order
     const sessions = await sessionRepository.findByShop(shopId, { limit: 1000 });
     const session = sessions.find((s) => s.shopwareOrderId === change.orderId);
 
     if (!session) {
-      logger.debug(
-        { orderId: change.orderId, shopId },
-        'No UCP session found for order'
-      );
+      logger.debug({ orderId: change.orderId, shopId }, 'No UCP session found for order');
       return { success: false, error: 'No UCP session for this order' };
     }
 
@@ -232,19 +222,17 @@ class OrderStatusSyncService {
         return null;
       }
 
-      const status = this.mapShopwareStateToUcp(
-        order.stateMachineState?.technicalName ?? 'open'
-      );
+      const status = this.mapShopwareStateToUcp(order.stateMachineState?.technicalName ?? 'open');
 
       // Get tracking from deliveries
-      const tracking = order.deliveries
-        ?.flatMap((d) =>
+      const tracking = order.deliveries?.flatMap(
+        (d) =>
           d.trackingCodes?.map((code) => ({
             carrier: d.shippingMethod?.name ?? 'Unknown',
             tracking_number: code,
             tracking_url: this.buildTrackingUrl(d.shippingMethod?.name, code),
           })) ?? []
-        );
+      );
 
       return {
         status,
@@ -335,9 +323,7 @@ class OrderStatusSyncService {
   /**
    * Map UCP status to Shopware state action
    */
-  private mapUcpStatusToShopware(
-    ucpStatus: UcpOrderStatus
-  ): { action: string } | null {
+  private mapUcpStatusToShopware(ucpStatus: UcpOrderStatus): { action: string } | null {
     const actionMap: Record<UcpOrderStatus, string | null> = {
       pending: null,
       confirmed: 'process', // open -> in_progress
@@ -355,7 +341,10 @@ class OrderStatusSyncService {
   /**
    * Build tracking URL for carrier
    */
-  private buildTrackingUrl(carrier: string | undefined, trackingNumber: string): string | undefined {
+  private buildTrackingUrl(
+    carrier: string | undefined,
+    trackingNumber: string
+  ): string | undefined {
     if (!carrier) return undefined;
 
     const carrierLower = carrier.toLowerCase();

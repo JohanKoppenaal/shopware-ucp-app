@@ -86,10 +86,12 @@ export class GooglePayHandler extends BasePaymentHandler {
 
       this.logPaymentResult(session, pspResult);
       return pspResult;
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error({ error: errorMessage, sessionId: session.ucpSessionId }, 'Google Pay processing failed');
+      this.logger.error(
+        { error: errorMessage, sessionId: session.ucpSessionId },
+        'Google Pay processing failed'
+      );
       return this.createFailedResult('processing_error', errorMessage);
     }
   }
@@ -174,10 +176,13 @@ export class GooglePayHandler extends BasePaymentHandler {
     // In production, this would call the actual PSP API
     // with the decrypted network token and cryptogram
 
-    this.logger.debug({
-      authMethod: payload.paymentMethodDetails.authMethod,
-      paymentMethod: payload.paymentMethod,
-    }, 'Forwarding to PSP');
+    this.logger.debug(
+      {
+        authMethod: payload.paymentMethodDetails.authMethod,
+        paymentMethod: payload.paymentMethod,
+      },
+      'Forwarding to PSP'
+    );
 
     // Simulate PSP response
     // In production: call Stripe/Adyen/Mollie with network token

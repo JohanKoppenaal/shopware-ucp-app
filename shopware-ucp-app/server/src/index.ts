@@ -10,6 +10,7 @@ import helmet from 'helmet';
 import pinoHttp from 'pino-http';
 import { logger } from './utils/logger.js';
 import { keyManager } from './services/KeyManager.js';
+import { metricsMiddleware, metricsHandler } from './middleware/metrics.js';
 
 // Import routes
 import shopwareRoutes from './routes/shopware.js';
@@ -72,12 +73,22 @@ app.use(
   })
 );
 
+// Prometheus metrics collection
+if (process.env['ENABLE_METRICS'] !== 'false') {
+  app.use(metricsMiddleware());
+}
+
 // ============================================================================
 // Routes
 // ============================================================================
 
 // Health check (before other routes for load balancer)
 app.use('/health', healthRoutes);
+
+// Prometheus metrics endpoint
+if (process.env['ENABLE_METRICS'] !== 'false') {
+  app.get('/metrics', metricsHandler);
+}
 
 // Shopware app registration
 app.use('/shopware', shopwareRoutes);

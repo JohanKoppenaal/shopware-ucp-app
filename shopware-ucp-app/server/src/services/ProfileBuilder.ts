@@ -120,8 +120,7 @@ export class ProfileBuilder {
     }
 
     // Fulfillment extension
-    const fulfillmentEnabled =
-      !enabledExtensions || enabledExtensions.includes('fulfillment');
+    const fulfillmentEnabled = !enabledExtensions || enabledExtensions.includes('fulfillment');
     if (checkoutEnabled && fulfillmentEnabled) {
       capabilities.push({
         name: 'dev.ucp.shopping.checkout.fulfillment',
@@ -133,8 +132,7 @@ export class ProfileBuilder {
     }
 
     // Discounts extension
-    const discountsEnabled =
-      !enabledExtensions || enabledExtensions.includes('discounts');
+    const discountsEnabled = !enabledExtensions || enabledExtensions.includes('discounts');
     if (checkoutEnabled && discountsEnabled) {
       capabilities.push({
         name: 'dev.ucp.shopping.checkout.discounts',

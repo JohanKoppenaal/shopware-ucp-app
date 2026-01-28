@@ -5,12 +5,7 @@
  */
 
 import type { Address } from '../types/ucp.js';
-import type {
-  ShopwareAddress,
-  Country,
-  CountryState,
-  Salutation,
-} from '../types/shopware.js';
+import type { ShopwareAddress, Country, CountryState, Salutation } from '../types/shopware.js';
 import type { ShopwareApiClient } from './ShopwareApiClient.js';
 import type { MockShopwareApiClient } from './MockShopwareApiClient.js';
 import { logger } from '../utils/logger.js';
@@ -34,20 +29,21 @@ export class AddressMapper {
   /**
    * Map UCP address to Shopware address with all required lookups
    */
-  async mapToShopware(
-    client: ApiClient,
-    address: Address
-  ): Promise<AddressMappingResult> {
+  async mapToShopware(client: ApiClient, address: Address): Promise<AddressMappingResult> {
     // Lookup country by ISO code
     const country = await client.getCountryByIso(address.address_country);
     if (!country) {
-      throw new AddressMappingError('COUNTRY_NOT_FOUND', `Country not found: ${address.address_country}`);
+      throw new AddressMappingError(
+        'COUNTRY_NOT_FOUND',
+        `Country not found: ${address.address_country}`
+      );
     }
 
     // Lookup country state if region provided
     let countryState: CountryState | undefined;
     if (address.address_region) {
-      countryState = await client.getCountryState(country.id, address.address_region) ?? undefined;
+      countryState =
+        (await client.getCountryState(country.id, address.address_region)) ?? undefined;
       // State is optional, log warning if not found but don't fail
       if (!countryState) {
         logger.warn(
@@ -87,11 +83,7 @@ export class AddressMapper {
   /**
    * Map Shopware address back to UCP format
    */
-  mapFromShopware(
-    address: ShopwareAddress,
-    countryIso: string,
-    stateCode?: string
-  ): Address {
+  mapFromShopware(address: ShopwareAddress, countryIso: string, stateCode?: string): Address {
     return {
       first_name: address.firstName,
       last_name: address.lastName,

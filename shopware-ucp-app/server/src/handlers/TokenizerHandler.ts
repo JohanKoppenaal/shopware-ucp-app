@@ -48,10 +48,12 @@ export class TokenizerHandler extends BasePaymentHandler {
 
       this.logPaymentResult(session, result);
       return result;
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error({ error: errorMessage, sessionId: session.ucpSessionId }, 'Payment processing failed');
+      this.logger.error(
+        { error: errorMessage, sessionId: session.ucpSessionId },
+        'Payment processing failed'
+      );
       return this.createFailedResult('processing_error', errorMessage);
     }
   }
@@ -198,10 +200,7 @@ export class TokenizerHandler extends BasePaymentHandler {
   /**
    * Process with mock PSP (for development/testing)
    */
-  private async processMock(
-    token: string,
-    _paymentData: PaymentData
-  ): Promise<PaymentResult> {
+  private async processMock(token: string, _paymentData: PaymentData): Promise<PaymentResult> {
     this.logger.debug({ token }, 'Processing with mock PSP');
 
     // Simulate various scenarios based on token content

@@ -1,0 +1,70 @@
+services:
+  # Shopware 6.6 with Dockware
+  shopware:
+    image: dockware/dev:6.6.8.0
+    container_name: shopware-ucp
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8888:8888"   # Adminer (database management)
+    environment:
+      - APP_URL=http://localhost
+      - XDEBUG_ENABLED=0
+    volumes:
+      # Mount the UCP app for installation
+      - ../shopware-ucp-app:/tmp/ucp-app:ro
+    networks:
+      - ucp-network
+    depends_on:
+      - ucp-server
+
+  # PostgreSQL for UCP server
+  postgres:
+    image: postgres:15-alpine
+    container_name: ucp-postgres
+    environment:
+      - POSTGRES_USER=ucp
+      - POSTGRES_PASSWORD=ucp_dev_password
+      - POSTGRES_DB=ucp
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ucp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ucp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # UCP App Server (development mode with hot reload)
+  ucp-server:
+    image: node:20-alpine
+    container_name: ucp-server
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://ucp:ucp_dev_password@postgres:5432/ucp
+      - APP_URL=http://ucp-server:3000
+      - UCP_SERVER_URL=http://ucp-server:3000
+      - APP_SECRET=dev-secret-change-in-production
+      - LOG_LEVEL=debug
+    volumes:
+      - ../shopware-ucp-app/server:/app
+      - ucp-node-modules:/app/node_modules
+    command: sh -c "apk add --no-cache openssl && npm install && npx prisma generate && npx prisma db push && npm run dev"
+    networks:
+      - ucp-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  ucp-network:
+    driver: bridge
+
+volumes:
+  ucp-node-modules:
+  postgres-data:

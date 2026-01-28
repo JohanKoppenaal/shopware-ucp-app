@@ -154,9 +154,7 @@ class WebhookService {
 
     try {
       // Sign the payload
-      const signature = await keyManager.signPayload(
-        payload as unknown as Record<string, unknown>
-      );
+      const signature = await keyManager.signPayload(payload as unknown as Record<string, unknown>);
 
       // Send the webhook
       const response = await fetch(delivery.targetUrl, {
@@ -195,11 +193,7 @@ class WebhookService {
         );
       } else {
         const nextRetryAt = this.calculateNextRetry(attempts);
-        await webhookDeliveryRepository.markFailedWithRetry(
-          delivery.id,
-          errorMessage,
-          nextRetryAt
-        );
+        await webhookDeliveryRepository.markFailedWithRetry(delivery.id, errorMessage, nextRetryAt);
         logger.warn(
           { deliveryId: delivery.id, attempts, nextRetryAt, error: errorMessage },
           'Webhook delivery failed, scheduled for retry'
@@ -228,12 +222,9 @@ class WebhookService {
   /**
    * Build webhook URL from platform profile URL
    */
-  private buildWebhookUrl(
-    profileUrl: string,
-    event: OrderWebhookPayload['event']
-  ): string {
+  private buildWebhookUrl(profileUrl: string, event: OrderWebhookPayload['event']): string {
     // Remove trailing slash and .well-known/ucp if present
-    let baseUrl = profileUrl.replace(/\/?\.well-known\/ucp\/?$/, '').replace(/\/$/, '');
+    const baseUrl = profileUrl.replace(/\/?\.well-known\/ucp\/?$/, '').replace(/\/$/, '');
 
     // Default webhook path pattern
     // In production, this would be discovered from the platform profile
@@ -257,10 +248,7 @@ class WebhookService {
   /**
    * Get recent deliveries
    */
-  async getRecentDeliveries(
-    shopId: string,
-    limit = 50
-  ): Promise<WebhookDelivery[]> {
+  async getRecentDeliveries(shopId: string, limit = 50): Promise<WebhookDelivery[]> {
     return webhookDeliveryRepository.findMany({ shopId }, { limit });
   }
 

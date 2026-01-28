@@ -11,6 +11,10 @@ export default {
       'ts-jest',
       {
         useESM: true,
+        isolatedModules: true,
+        diagnostics: {
+          ignoreCodes: [151002],
+        },
       },
     ],
   },

@@ -26,12 +26,12 @@
         <version>1.0.0</version>
         <license>MIT</license>
         <icon>Resources/config/icon.png</icon>
-        <compatibility>~6.5.0</compatibility>
+        <compatibility>~6.5.0 || ~6.6.0</compatibility>
     </meta>
 
     <setup>
-        <registrationUrl>https://ucp-app.example.com/shopware/registration</registrationUrl>
-        <secret>APP_SECRET_PLACEHOLDER</secret>
+        <registrationUrl>http://ucp-server:3000/shopware/registration</registrationUrl>
+        <secret>dev-secret-change-in-production</secret>
     </setup>
 
     <permissions>
@@ -83,18 +83,15 @@
 
     <webhooks>
         <!-- Order lifecycle events -->
-        <webhook name="orderPlaced" url="https://ucp-app.example.com/shopware/webhook/order-placed" event="checkout.order.placed"/>
-        <webhook name="orderStateChanged" url="https://ucp-app.example.com/shopware/webhook/order-state-changed" event="state_machine.order.state_changed"/>
-        <webhook name="orderDeliveryStateChanged" url="https://ucp-app.example.com/shopware/webhook/order-delivery-state-changed" event="state_machine.order_delivery.state_changed"/>
-        <webhook name="orderTransactionStateChanged" url="https://ucp-app.example.com/shopware/webhook/order-transaction-state-changed" event="state_machine.order_transaction.state_changed"/>
+        <webhook name="orderPlaced" url="http://ucp-server:3000/shopware/webhook/order-placed" event="checkout.order.placed"/>
 
         <!-- Product updates for catalog sync -->
-        <webhook name="productWritten" url="https://ucp-app.example.com/shopware/webhook/product-written" event="product.written"/>
+        <webhook name="productWritten" url="http://ucp-server:3000/shopware/webhook/product-written" event="product.written"/>
     </webhooks>
 
     <admin>
         <module name="ucp-dashboard"
-                source="https://ucp-app.example.com/admin"
+                source="http://ucp-server:3000/admin"
                 parent="sw-settings">
             <label>UCP Commerce</label>
             <label lang="nl-NL">UCP Commerce</label>

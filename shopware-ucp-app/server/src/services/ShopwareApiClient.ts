@@ -104,7 +104,7 @@ export class ShopwareApiClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({})) as ApiError;
+        const errorBody = (await response.json().catch(() => ({}))) as ApiError;
         const errorMessage = errorBody.errors?.[0]?.detail ?? errorBody.message ?? 'Unknown error';
         logger.error({ status: response.status, url, error: errorMessage }, 'Shopware API error');
         throw new Error(`Shopware API error: ${response.status} - ${errorMessage}`);
@@ -135,13 +135,7 @@ export class ShopwareApiClient {
   }
 
   async getCart(cartToken: string): Promise<ShopwareCart> {
-    return this.makeRequest<ShopwareCart>(
-      'GET',
-      '/store-api/checkout/cart',
-      undefined,
-      true,
-      true
-    );
+    return this.makeRequest<ShopwareCart>('GET', '/store-api/checkout/cart', undefined, true, true);
   }
 
   async addLineItem(

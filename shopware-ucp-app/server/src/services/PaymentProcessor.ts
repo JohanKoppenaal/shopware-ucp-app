@@ -4,11 +4,7 @@
  */
 
 import type { CheckoutSession as DbCheckoutSession } from '@prisma/client';
-import type {
-  PaymentData,
-  PaymentResult,
-  CompleteCheckoutResponse,
-} from '../types/ucp.js';
+import type { PaymentData, PaymentResult, CompleteCheckoutResponse } from '../types/ucp.js';
 import type { ShopwareApiClient } from './ShopwareApiClient.js';
 import type { MockShopwareApiClient } from './MockShopwareApiClient.js';
 import { paymentHandlerRegistry } from './PaymentHandlerRegistry.js';
@@ -79,7 +75,10 @@ export class PaymentProcessor {
     const handler = paymentHandlerRegistry.getHandler(paymentData.handler_id);
     if (!handler) {
       logger.warn({ handlerId: paymentData.handler_id }, 'Payment handler not found');
-      throw new PaymentError('handler_not_found', `Payment handler "${paymentData.handler_id}" not found`);
+      throw new PaymentError(
+        'handler_not_found',
+        `Payment handler "${paymentData.handler_id}" not found`
+      );
     }
 
     // Update session status to processing
@@ -95,12 +94,7 @@ export class PaymentProcessor {
       const paymentResult = await handler.processPayment(session, paymentData);
 
       // Handle payment result
-      return await this.handlePaymentResult(
-        client,
-        session,
-        paymentData,
-        paymentResult
-      );
+      return await this.handlePaymentResult(client, session, paymentData, paymentResult);
     } catch (error) {
       // Revert session status on error
       await sessionRepository.update(sessionId, { status: 'incomplete' });
@@ -172,7 +166,10 @@ export class PaymentProcessor {
     }
 
     // Payment successful - create the order
-    logger.info({ sessionId, transactionId: paymentResult.transaction_id }, 'Payment successful, creating order');
+    logger.info(
+      { sessionId, transactionId: paymentResult.transaction_id },
+      'Payment successful, creating order'
+    );
 
     const orderResult = await orderService.createOrder(
       client,
@@ -275,7 +272,10 @@ export class PaymentProcessor {
 
     if (!actionResult.success) {
       await sessionRepository.update(sessionId, { status: 'incomplete' });
-      throw new PaymentError('authentication_failed', actionResult.error ?? '3DS authentication failed');
+      throw new PaymentError(
+        'authentication_failed',
+        actionResult.error ?? '3DS authentication failed'
+      );
     }
 
     // Action completed successfully - create the order

@@ -116,7 +116,10 @@ export class SessionRepository {
       },
     });
 
-    logger.debug({ sessionId: ucpSessionId, updates: Object.keys(data) }, 'Updated checkout session');
+    logger.debug(
+      { sessionId: ucpSessionId, updates: Object.keys(data) },
+      'Updated checkout session'
+    );
     return session;
   }
 
@@ -170,6 +173,50 @@ export class SessionRepository {
   }
 
   /**
+   * Find multiple sessions with flexible filtering
+   */
+  async findMany(
+    filter: {
+      shopId?: string;
+      status?: 'incomplete' | 'complete' | 'failed' | 'expired';
+      createdAfter?: Date;
+    },
+    options?: {
+      limit?: number;
+      offset?: number;
+      orderBy?: { createdAt: 'asc' | 'desc' };
+    }
+  ): Promise<CheckoutSession[]> {
+    const whereClause: Prisma.CheckoutSessionWhereInput = {};
+
+    if (filter.shopId) {
+      whereClause.shopId = filter.shopId;
+    }
+
+    if (filter.status) {
+      // Map external status names to internal values
+      const statusMap: Record<string, string> = {
+        incomplete: 'incomplete',
+        complete: 'completed',
+        failed: 'canceled',
+        expired: 'expired',
+      };
+      whereClause.status = statusMap[filter.status] || filter.status;
+    }
+
+    if (filter.createdAfter) {
+      whereClause.createdAt = { gte: filter.createdAfter };
+    }
+
+    return prisma.checkoutSession.findMany({
+      where: whereClause,
+      orderBy: { createdAt: options?.orderBy?.createdAt || 'desc' },
+      take: options?.limit ?? 50,
+      skip: options?.offset ?? 0,
+    });
+  }
+
+  /**
    * Delete expired sessions
    */
   async deleteExpired(): Promise<number> {
@@ -190,7 +237,10 @@ export class SessionRepository {
   /**
    * Get session statistics for a shop
    */
-  async getStats(shopId: string, since?: Date): Promise<{
+  async getStats(
+    shopId: string,
+    since?: Date
+  ): Promise<{
     total: number;
     completed: number;
     canceled: number;

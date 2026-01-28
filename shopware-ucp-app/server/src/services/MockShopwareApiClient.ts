@@ -248,8 +248,22 @@ export class MockShopwareApiClient {
   async getPaymentMethods(): Promise<PaymentMethod[]> {
     const now = new Date().toISOString();
     return [
-      { id: 'invoice', name: 'Invoice', description: 'Pay by invoice', active: true, afterOrderEnabled: false, createdAt: now },
-      { id: 'prepayment', name: 'Prepayment', description: 'Pay in advance', active: true, afterOrderEnabled: false, createdAt: now },
+      {
+        id: 'invoice',
+        name: 'Invoice',
+        description: 'Pay by invoice',
+        active: true,
+        afterOrderEnabled: false,
+        createdAt: now,
+      },
+      {
+        id: 'prepayment',
+        name: 'Prepayment',
+        description: 'Pay in advance',
+        active: true,
+        afterOrderEnabled: false,
+        createdAt: now,
+      },
     ] as PaymentMethod[];
   }
 
@@ -266,31 +280,49 @@ export class MockShopwareApiClient {
   }
 
   async searchProducts(_query: string, limit = 25): Promise<ShopwareProduct[]> {
-    return [
-      this.getMockProduct('product-1')!,
-      this.getMockProduct('product-2')!,
-    ].slice(0, limit);
+    return [this.getMockProduct('product-1')!, this.getMockProduct('product-2')!].slice(0, limit);
   }
 
   private getMockProduct(id: string): ShopwareProduct | null {
     const now = new Date().toISOString();
     const products: Record<string, ShopwareProduct> = {
       'product-1': {
-        id: 'product-1', productNumber: 'PROD-001', name: 'Test Product 1',
-        description: 'A great test product', active: true, availableStock: 100, stock: 100,
-        isCloseout: false, purchaseSteps: 1, createdAt: now,
+        id: 'product-1',
+        productNumber: 'PROD-001',
+        name: 'Test Product 1',
+        description: 'A great test product',
+        active: true,
+        availableStock: 100,
+        stock: 100,
+        isCloseout: false,
+        purchaseSteps: 1,
+        createdAt: now,
         price: [{ gross: 29.99, net: 24.78, currencyId: 'EUR', linked: true }],
       } as ShopwareProduct,
       'product-2': {
-        id: 'product-2', productNumber: 'PROD-002', name: 'Test Product 2',
-        description: 'Another test product', active: true, availableStock: 50, stock: 50,
-        isCloseout: false, purchaseSteps: 1, createdAt: now,
+        id: 'product-2',
+        productNumber: 'PROD-002',
+        name: 'Test Product 2',
+        description: 'Another test product',
+        active: true,
+        availableStock: 50,
+        stock: 50,
+        isCloseout: false,
+        purchaseSteps: 1,
+        createdAt: now,
         price: [{ gross: 49.99, net: 41.31, currencyId: 'EUR', linked: true }],
       } as ShopwareProduct,
       'test-product-1': {
-        id: 'test-product-1', productNumber: 'TEST-001', name: 'Test Item',
-        description: 'A test item', active: true, availableStock: 999, stock: 999,
-        isCloseout: false, purchaseSteps: 1, createdAt: now,
+        id: 'test-product-1',
+        productNumber: 'TEST-001',
+        name: 'Test Item',
+        description: 'A test item',
+        active: true,
+        availableStock: 999,
+        stock: 999,
+        isCloseout: false,
+        purchaseSteps: 1,
+        createdAt: now,
         price: [{ gross: 19.99, net: 16.52, currencyId: 'EUR', linked: true }],
       } as ShopwareProduct,
     };
@@ -305,7 +337,10 @@ export class MockShopwareApiClient {
     return mockOrders.get(orderId) ?? null;
   }
 
-  async updateOrderCustomFields(orderId: string, customFields: Record<string, unknown>): Promise<void> {
+  async updateOrderCustomFields(
+    orderId: string,
+    customFields: Record<string, unknown>
+  ): Promise<void> {
     const order = mockOrders.get(orderId);
     if (order) {
       order.customFields = { ...order.customFields, ...customFields };
@@ -323,10 +358,50 @@ export class MockShopwareApiClient {
   async getCountries(): Promise<Country[]> {
     const now = new Date().toISOString();
     return [
-      { id: 'nl', name: 'Netherlands', iso: 'NL', iso3: 'NLD', active: true, position: 1, shippingAvailable: true, taxFree: false, createdAt: now },
-      { id: 'de', name: 'Germany', iso: 'DE', iso3: 'DEU', active: true, position: 2, shippingAvailable: true, taxFree: false, createdAt: now },
-      { id: 'be', name: 'Belgium', iso: 'BE', iso3: 'BEL', active: true, position: 3, shippingAvailable: true, taxFree: false, createdAt: now },
-      { id: 'us', name: 'United States', iso: 'US', iso3: 'USA', active: true, position: 4, shippingAvailable: true, taxFree: false, createdAt: now },
+      {
+        id: 'nl',
+        name: 'Netherlands',
+        iso: 'NL',
+        iso3: 'NLD',
+        active: true,
+        position: 1,
+        shippingAvailable: true,
+        taxFree: false,
+        createdAt: now,
+      },
+      {
+        id: 'de',
+        name: 'Germany',
+        iso: 'DE',
+        iso3: 'DEU',
+        active: true,
+        position: 2,
+        shippingAvailable: true,
+        taxFree: false,
+        createdAt: now,
+      },
+      {
+        id: 'be',
+        name: 'Belgium',
+        iso: 'BE',
+        iso3: 'BEL',
+        active: true,
+        position: 3,
+        shippingAvailable: true,
+        taxFree: false,
+        createdAt: now,
+      },
+      {
+        id: 'us',
+        name: 'United States',
+        iso: 'US',
+        iso3: 'USA',
+        active: true,
+        position: 4,
+        shippingAvailable: true,
+        taxFree: false,
+        createdAt: now,
+      },
     ] as Country[];
   }
 
@@ -355,13 +430,31 @@ export class MockShopwareApiClient {
     const now = new Date().toISOString();
     return [
       { id: 'mr', salutationKey: 'mr', displayName: 'Mr.', letterName: 'Dear Mr.', createdAt: now },
-      { id: 'mrs', salutationKey: 'mrs', displayName: 'Mrs.', letterName: 'Dear Mrs.', createdAt: now },
-      { id: 'not_specified', salutationKey: 'not_specified', displayName: '', letterName: 'Dear', createdAt: now },
+      {
+        id: 'mrs',
+        salutationKey: 'mrs',
+        displayName: 'Mrs.',
+        letterName: 'Dear Mrs.',
+        createdAt: now,
+      },
+      {
+        id: 'not_specified',
+        salutationKey: 'not_specified',
+        displayName: '',
+        letterName: 'Dear',
+        createdAt: now,
+      },
     ] as Salutation[];
   }
 
   async getDefaultSalutation(): Promise<Salutation | null> {
-    return { id: 'not_specified', salutationKey: 'not_specified', displayName: '', letterName: 'Dear', createdAt: new Date().toISOString() } as Salutation;
+    return {
+      id: 'not_specified',
+      salutationKey: 'not_specified',
+      displayName: '',
+      letterName: 'Dear',
+      createdAt: new Date().toISOString(),
+    } as Salutation;
   }
 
   // ============================================================================
@@ -374,7 +467,12 @@ export class MockShopwareApiClient {
 
   private toShopwareCart(cart: MockCart): ShopwareCart {
     const shippingMethod = cart.shippingMethodId
-      ? { id: cart.shippingMethodId, name: cart.shippingMethodId, active: true, createdAt: new Date().toISOString() }
+      ? {
+          id: cart.shippingMethodId,
+          name: cart.shippingMethodId,
+          active: true,
+          createdAt: new Date().toISOString(),
+        }
       : undefined;
 
     return {
@@ -386,7 +484,9 @@ export class MockShopwareApiClient {
         positionPrice: cart.totalPrice,
         taxStatus: 'gross',
         rawTotal: cart.totalPrice,
-        calculatedTaxes: [{ tax: cart.totalPrice * 0.21 / 1.21, taxRate: 21, price: cart.totalPrice }],
+        calculatedTaxes: [
+          { tax: (cart.totalPrice * 0.21) / 1.21, taxRate: 21, price: cart.totalPrice },
+        ],
         taxRules: [{ taxRate: 21, percentage: 100 }],
       },
       lineItems: cart.lineItems.map((li) => ({
@@ -403,27 +503,33 @@ export class MockShopwareApiClient {
           unitPrice: li.unitPrice,
           totalPrice: li.totalPrice,
           quantity: li.quantity,
-          calculatedTaxes: [{ tax: li.totalPrice * 0.21 / 1.21, taxRate: 21, price: li.totalPrice }],
+          calculatedTaxes: [
+            { tax: (li.totalPrice * 0.21) / 1.21, taxRate: 21, price: li.totalPrice },
+          ],
           taxRules: [{ taxRate: 21, percentage: 100 }],
           referencePrice: null,
           listPrice: null,
           regulationPrice: null,
         },
       })),
-      deliveries: shippingMethod ? [{
-        shippingMethod: shippingMethod as ShippingMethod,
-        shippingCosts: {
-          unitPrice: 0,
-          totalPrice: 0,
-          quantity: 1,
-          calculatedTaxes: [],
-          taxRules: [],
-          referencePrice: null,
-          listPrice: null,
-          regulationPrice: null,
-        },
-        positions: [],
-      }] : [],
+      deliveries: shippingMethod
+        ? [
+            {
+              shippingMethod: shippingMethod as ShippingMethod,
+              shippingCosts: {
+                unitPrice: 0,
+                totalPrice: 0,
+                quantity: 1,
+                calculatedTaxes: [],
+                taxRules: [],
+                referencePrice: null,
+                listPrice: null,
+                regulationPrice: null,
+              },
+              positions: [],
+            },
+          ]
+        : [],
       transactions: [],
       modified: false,
       errors: [],

@@ -33,9 +33,7 @@ export class MollieHandler extends BasePaymentHandler {
   constructor() {
     super();
     this.config = this.loadConfig();
-    this.baseUrl = this.config.testMode
-      ? 'https://api.mollie.com/v2'
-      : 'https://api.mollie.com/v2';
+    this.baseUrl = this.config.testMode ? 'https://api.mollie.com/v2' : 'https://api.mollie.com/v2';
   }
 
   async processPayment(
@@ -91,7 +89,10 @@ export class MollieHandler extends BasePaymentHandler {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error({ error: errorMessage, sessionId: session.ucpSessionId }, 'Mollie payment failed');
+      this.logger.error(
+        { error: errorMessage, sessionId: session.ucpSessionId },
+        'Mollie payment failed'
+      );
       return this.createFailedResult('mollie_error', errorMessage);
     }
   }
@@ -168,7 +169,7 @@ export class MollieHandler extends BasePaymentHandler {
     const response = await fetch(`${this.baseUrl}/payments`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -296,7 +297,7 @@ export class MollieHandler extends BasePaymentHandler {
 
     const response = await fetch(`${this.baseUrl}/payments/${paymentId}`, {
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.config.apiKey}`,
       },
     });
 
@@ -304,7 +305,7 @@ export class MollieHandler extends BasePaymentHandler {
       throw new Error(`Failed to fetch payment status: ${response.status}`);
     }
 
-    const payment = await response.json() as MolliePaymentResponse;
+    const payment = (await response.json()) as MolliePaymentResponse;
 
     return {
       status: payment.status,

@@ -1,0 +1,49 @@
+.ucp-logs-sessions {
+    .ucp-session-id {
+        font-family: 'SF Mono', Monaco, 'Andale Mono', monospace;
+        font-size: 12px;
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .ucp-text-muted {
+        color: #999;
+    }
+
+    .ucp-text-danger {
+        color: #e74c3c;
+    }
+
+    .ucp-detail-content {
+        padding: 16px 0;
+    }
+
+    .ucp-detail-list {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 12px 16px;
+        margin: 0;
+
+        dt {
+            font-weight: 600;
+            color: #666;
+        }
+
+        dd {
+            margin: 0;
+        }
+    }
+
+    .ucp-json-view {
+        background: #f8f9fa;
+        border: 1px solid #e5e5e5;
+        border-radius: 6px;
+        padding: 16px;
+        font-family: 'SF Mono', Monaco, 'Andale Mono', monospace;
+        font-size: 12px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+}

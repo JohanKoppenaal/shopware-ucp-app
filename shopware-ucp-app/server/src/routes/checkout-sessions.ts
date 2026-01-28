@@ -16,13 +16,15 @@ const router = Router();
 // ============================================================================
 
 const createCheckoutSchema = z.object({
-  line_items: z.array(
-    z.object({
-      product_id: z.string(),
-      quantity: z.number().int().positive(),
-      variant_id: z.string().optional(),
-    })
-  ).min(1),
+  line_items: z
+    .array(
+      z.object({
+        product_id: z.string(),
+        quantity: z.number().int().positive(),
+        variant_id: z.string().optional(),
+      })
+    )
+    .min(1),
   buyer: z
     .object({
       email: z.string().email().optional(),
@@ -252,8 +254,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     res.json(session);
   } catch (error) {
-    const errorDetails = error instanceof Error ? { message: error.message, stack: error.stack } : error;
-    logger.error({ error: errorDetails, sessionId: req.params['id'] }, 'Failed to update checkout session');
+    const errorDetails =
+      error instanceof Error ? { message: error.message, stack: error.stack } : error;
+    logger.error(
+      { error: errorDetails, sessionId: req.params['id'] },
+      'Failed to update checkout session'
+    );
 
     if (error instanceof z.ZodError) {
       sendError(res, 400, {

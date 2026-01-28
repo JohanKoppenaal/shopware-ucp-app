@@ -239,15 +239,16 @@ export class PaymentHandlerRegistry {
     const handlerDescriptions: Record<string, string> = {
       'google-pay': 'Accept payments via Google Pay wallet',
       'business-tokenizer': 'Process pre-tokenized card payments via PSP',
-      'mollie': 'Accept payments via Mollie (iDEAL, Cards, Bancontact, etc.)',
+      mollie: 'Accept payments via Mollie (iDEAL, Cards, Bancontact, etc.)',
     };
 
     return Array.from(this.handlers.entries()).map(([id, handler]) => ({
       id,
       name: handler.name,
-      configured: 'isConfigured' in handler && typeof handler.isConfigured === 'function'
-        ? handler.isConfigured()
-        : true,
+      configured:
+        'isConfigured' in handler && typeof handler.isConfigured === 'function'
+          ? handler.isConfigured()
+          : true,
       description: handlerDescriptions[id] ?? 'Payment handler',
     }));
   }

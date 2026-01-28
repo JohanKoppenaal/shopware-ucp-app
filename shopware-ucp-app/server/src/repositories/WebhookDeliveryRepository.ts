@@ -24,6 +24,7 @@ export interface WebhookDeliveryFilters {
   event?: string;
   afterDate?: Date;
   beforeDate?: Date;
+  createdAfter?: Date;
 }
 
 class WebhookDeliveryRepository {
@@ -61,10 +62,7 @@ class WebhookDeliveryRepository {
     return prisma.webhookDelivery.findMany({
       where: {
         status: { in: ['pending', 'retrying'] },
-        OR: [
-          { nextRetryAt: null },
-          { nextRetryAt: { lte: new Date() } },
-        ],
+        OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }],
       },
       orderBy: { createdAt: 'asc' },
       take: limit,
@@ -89,10 +87,12 @@ class WebhookDeliveryRepository {
     if (filters.event) {
       where.event = filters.event;
     }
-    if (filters.afterDate && filters.beforeDate) {
-      where.createdAt = { gte: filters.afterDate, lte: filters.beforeDate };
-    } else if (filters.afterDate) {
-      where.createdAt = { gte: filters.afterDate };
+    // Support both afterDate and createdAfter (alias)
+    const afterDate = filters.afterDate || filters.createdAfter;
+    if (afterDate && filters.beforeDate) {
+      where.createdAt = { gte: afterDate, lte: filters.beforeDate };
+    } else if (afterDate) {
+      where.createdAt = { gte: afterDate };
     } else if (filters.beforeDate) {
       where.createdAt = { lte: filters.beforeDate };
     }

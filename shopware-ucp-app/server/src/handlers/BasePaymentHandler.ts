@@ -76,23 +76,23 @@ export abstract class BasePaymentHandler {
     paymentData: PaymentData,
     additionalContext?: Record<string, unknown>
   ): void {
-    this.logger.info({
-      sessionId: session.ucpSessionId,
-      handlerId: this.id,
-      paymentType: paymentData.type,
-      brand: paymentData.brand,
-      lastDigits: paymentData.last_digits,
-      ...additionalContext,
-    }, 'Processing payment');
+    this.logger.info(
+      {
+        sessionId: session.ucpSessionId,
+        handlerId: this.id,
+        paymentType: paymentData.type,
+        brand: paymentData.brand,
+        lastDigits: paymentData.last_digits,
+        ...additionalContext,
+      },
+      'Processing payment'
+    );
   }
 
   /**
    * Log payment result (without sensitive data)
    */
-  protected logPaymentResult(
-    session: DbCheckoutSession,
-    result: PaymentResult
-  ): void {
+  protected logPaymentResult(session: DbCheckoutSession, result: PaymentResult): void {
     const logData: Record<string, unknown> = {
       sessionId: session.ucpSessionId,
       handlerId: this.id,
@@ -132,7 +132,10 @@ export abstract class BasePaymentHandler {
   /**
    * Create a successful payment result
    */
-  protected createSuccessResult(transactionId: string, status: 'authorized' | 'captured' = 'captured'): PaymentResult {
+  protected createSuccessResult(
+    transactionId: string,
+    status: 'authorized' | 'captured' = 'captured'
+  ): PaymentResult {
     return {
       success: true,
       status,

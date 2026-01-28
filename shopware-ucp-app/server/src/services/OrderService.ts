@@ -62,7 +62,10 @@ export class OrderService {
         ucp_completed_at: new Date().toISOString(),
       };
 
-      await client.updateOrderCustomFields(order.id, customFields as unknown as Record<string, unknown>);
+      await client.updateOrderCustomFields(
+        order.id,
+        customFields as unknown as Record<string, unknown>
+      );
 
       logger.info(
         {
